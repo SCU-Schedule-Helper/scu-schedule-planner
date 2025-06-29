@@ -9,9 +9,13 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@tanstack/react-query": "^5.81.5",
+    "install": "^0.13.0",
+    "next": "14.2.24",
     "react": "^18",
     "react-dom": "^18",
-    "next": "14.2.24"
+    "react-hot-toast": "^2.5.2",
+    "zod": "^3.25.67"
   },
   "devDependencies": {
     "typescript": "^5",
