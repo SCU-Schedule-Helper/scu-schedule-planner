@@ -220,14 +220,41 @@ export function validatePlan({
         }
     }
 
-    // TODO: Requirement evaluation & double counting (placeholder)
+    // ---------------------------------------------------------------
+    // Requirement evaluation  (basic – no double-counting yet)
+    // ---------------------------------------------------------------
+
     const requirementStatus: Record<string, RequirementStatus> = {};
+
+    // Helper – how many of the given codes are present in the taken set
+    const countTaken = (codes: string[]): number =>
+        codes.reduce((acc, c) => (takenBeforeSet.has(c) ? acc + 1 : acc), 0);
+
     for (const req of requirements) {
+        const requiredCodes =
+            (req.coursesRequired ?? req.courses ?? []) as string[];
+
+        // Base counts
+        let totalNeeded = requiredCodes.length;
+        let completed = countTaken(requiredCodes);
+
+        // Handle choose-from groups (e.g. "choose 2 of these 4")
+        if (req.chooseFrom && req.chooseFrom.options) {
+            totalNeeded += req.chooseFrom.count;
+            const satisfiedInChoose = countTaken(req.chooseFrom.options);
+            completed += Math.min(satisfiedInChoose, req.chooseFrom.count);
+        }
+
+        // Minimum-unit rule – defer detailed unit calc for later; treat as satisfied if courses met
+        const satisfied = totalNeeded === 0 ? true : completed >= totalNeeded;
+
+        const progressPct = totalNeeded === 0 ? 100 : Math.round((completed / totalNeeded) * 100);
+
         requirementStatus[req.name] = {
             id: req.id,
             name: req.name,
-            satisfied: false,
-            progress: 0,
+            satisfied,
+            progress: progressPct,
         };
     }
 

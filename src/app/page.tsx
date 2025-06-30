@@ -16,11 +16,21 @@ import {
   usePlansQuery,
 } from "@/hooks/api/usePlanQuery";
 import { usePlannerStore } from "@/hooks/usePlannerStore";
-import { GraduationCap, BookOpen, Target } from "lucide-react";
+import {
+  GraduationCap,
+  BookOpen,
+  Target,
+  LineChart as LineChartIcon,
+} from "lucide-react";
 import { AddCourseDialog } from "@/components/add-course-dialog";
 import type { Quarter } from "@/lib/types";
 import { useState } from "react";
 import { usePlanValidation } from "@/hooks/usePlanValidation";
+import { StatCard } from "@/components/dashboard/StatCard";
+import { useDashboardMetrics } from "@/hooks/useDashboardMetrics";
+import { UnitsLineChart } from "@/components/dashboard/UnitsLineChart";
+import { RequirementBarChart } from "@/components/dashboard/RequirementBarChart";
+import { AtRiskList } from "@/components/dashboard/AtRiskList";
 
 export default function DashboardPage() {
   const {
@@ -52,6 +62,9 @@ export default function DashboardPage() {
 
   // Validation report for current plan (using store-backed plan for accurate optimistic updates)
   const validationReport = usePlanValidation();
+
+  // ---- Dashboard metrics
+  const metrics = useDashboardMetrics();
 
   const handleAddCourse = async (quarterId: string) => {
     if (!plan?.id) return;
@@ -88,35 +101,20 @@ export default function DashboardPage() {
         <main className="p-6 space-y-6">
           {/* Summary Cards */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">
-                  Units Planned
-                </CardTitle>
-                <BookOpen className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-scu-cardinal">{0}</div>
-                <p className="text-xs text-muted-foreground">
-                  +4 from last quarter
-                </p>
-              </CardContent>
-            </Card>
+            <StatCard
+              title="Units Planned"
+              value={metrics?.unitsPlanned ?? 0}
+              icon={<BookOpen className="h-4 w-4 text-muted-foreground" />}
+              valueClassName="text-scu-cardinal"
+            />
 
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">
-                  Units Completed
-                </CardTitle>
-                <GraduationCap className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-green-600">
-                  {/* TODO: fetch from plan */}
-                </div>
-                <p className="text-xs text-muted-foreground">0% of degree</p>
-              </CardContent>
-            </Card>
+            <StatCard
+              title="Units Completed"
+              value={metrics?.unitsCompleted ?? 0}
+              icon={<GraduationCap className="h-4 w-4 text-muted-foreground" />}
+              valueClassName="text-green-600"
+              subtitle={`${metrics ? Math.round((metrics.unitsCompleted / (metrics.unitsCompleted + metrics.unitsPlanned || 1)) * 100) : 0}% of degree (units)`}
+            />
 
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -126,18 +124,71 @@ export default function DashboardPage() {
                 <Target className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent className="flex items-center justify-between">
-                <ProgressRing progress={0} size={80} strokeWidth={6}>
+                <ProgressRing
+                  progress={
+                    metrics
+                      ? Math.round(
+                          metrics.requirementProgress.reduce(
+                            (s, r) => s + r.progress,
+                            0
+                          ) / (metrics.requirementProgress.length || 1)
+                        )
+                      : 0
+                  }
+                  size={80}
+                  strokeWidth={6}
+                >
                   <span className="text-lg font-bold text-scu-cardinal">
-                    0%
+                    {metrics
+                      ? Math.round(
+                          metrics.requirementProgress.reduce(
+                            (s, r) => s + r.progress,
+                            0
+                          ) / (metrics.requirementProgress.length || 1)
+                        )
+                      : 0}
+                    %
                   </span>
                 </ProgressRing>
-                <div className="text-right">
-                  <div className="text-sm text-muted-foreground">Overall</div>
-                  <div className="text-sm text-muted-foreground">Progress</div>
-                </div>
               </CardContent>
             </Card>
           </div>
+
+          {/* Units per quarter chart */}
+          {metrics && metrics.unitsByQuarter.length > 0 && (
+            <Card>
+              <CardHeader className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <LineChartIcon className="w-4 h-4 text-muted-foreground" />
+                  <CardTitle className="text-sm font-medium">
+                    Unit Load by Quarter
+                  </CardTitle>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <UnitsLineChart data={metrics.unitsByQuarter} />
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Requirement progress bar chart & risk list side-by-side */}
+          {metrics && (
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              <div className="lg:col-span-2">
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-sm font-medium text-scu-cardinal">
+                      Requirement Progress Breakdown
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <RequirementBarChart data={metrics.requirementProgress} />
+                  </CardContent>
+                </Card>
+              </div>
+              <AtRiskList courseCodes={metrics.atRiskCourses} />
+            </div>
+          )}
 
           {/* Quarterly Plan Board */}
           <Card>
