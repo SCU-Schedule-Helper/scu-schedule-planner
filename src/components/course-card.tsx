@@ -48,14 +48,14 @@ export function CourseCard({ course, isDragging, className }: CourseCardProps) {
         <div className="flex items-start justify-between mb-2">
           <div className="flex-1">
             <h4 className="font-semibold text-sm text-scu-cardinal">
-              {course.code}
+              {course.code ?? course.courseCode}
             </h4>
             <p className="text-xs text-muted-foreground line-clamp-2">
               {course.title}
             </p>
           </div>
           <Badge variant="secondary" className="ml-2 text-xs">
-            {course.units}u
+            {course.units !== undefined ? `${course.units}u` : "—"}
           </Badge>
         </div>
         <div className="flex items-center justify-between">

@@ -29,13 +29,9 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useCoursesQuery } from "@/hooks/api/useCoursesQuery";
-import {
-  useAddPlannedCourseMutation,
-  usePlansQuery,
-  useUpdatePlanMutation,
-} from "@/hooks/api/usePlanQuery";
+import { useAddPlannedCourseMutation } from "@/hooks/api/usePlanQuery";
 import { usePlannerStore } from "@/hooks/usePlannerStore";
-import type { Course, Quarter, PlannedCourse } from "@/lib/types";
+import type { Course } from "@/lib/types";
 import { Search, Filter, Plus, BookOpen } from "lucide-react";
 import { toast } from "sonner";
 
@@ -51,21 +47,18 @@ export default function CatalogPage() {
 
   const { data: courses = [], isLoading } = useCoursesQuery();
   const {
-    userId,
     addPlannedCourse,
     currentPlanId,
-    updatePlan: updatePlanInStore,
+    plans: localPlans,
   } = usePlannerStore();
-  const { data: plans } = usePlansQuery(userId ?? "");
 
   const activePlan = currentPlanId
-    ? plans?.find((p) => p.id === currentPlanId)
-    : plans?.[0];
+    ? localPlans.find((p) => p.id === currentPlanId)
+    : localPlans[0];
 
   const addPlannedCourseMutation = useAddPlannedCourseMutation();
-  const updatePlanMutation = useUpdatePlanMutation();
 
-  // Gather codes already planned (optimistic via store)
+  // Gather codes already planned (from local store for immediate reactivity)
   const plannedCourseCodes = new Set<string>();
   if (activePlan) {
     activePlan.quarters.forEach((q) => {
@@ -78,34 +71,9 @@ export default function CatalogPage() {
 
     // Ensure the plan has at least one quarter
     let targetQuarterId = activePlan.quarters[0]?.id ?? "";
-
     if (!targetQuarterId) {
-      // Create a default quarter if none exist
-      const currentYear = new Date().getFullYear();
-      const defaultQuarterId = `Fall-${currentYear}`;
-      const newQuarter: Quarter = {
-        id: defaultQuarterId,
-        name: `Fall ${currentYear}`,
-        courses: [] as PlannedCourse[],
-      };
-
-      // Optimistically update local store
-      updatePlanInStore(activePlan.id!, {
-        quarters: [newQuarter],
-      });
-
-      // Persist the new quarter to backend
-      try {
-        await updatePlanMutation.mutateAsync({
-          planId: activePlan.id!,
-          updates: { quarters: [newQuarter] },
-        });
-        targetQuarterId = defaultQuarterId;
-      } catch (err) {
-        console.error("Failed to create default quarter", err);
-        // Revert optimistic update if needed – for now just log
-        return;
-      }
+      toast.error("This plan has no quarters. Please create a quarter first.");
+      return;
     }
 
     // If there are multiple quarters, ask which one; default to first.

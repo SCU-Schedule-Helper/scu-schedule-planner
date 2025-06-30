@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import axios from 'axios';
 import {
     type CourseFilter,
@@ -26,13 +26,33 @@ export const useCoursesQuery = () => {
 
 // Fetch a single course by code
 export const useCourseQuery = (courseCode: string) => {
+    const queryClient = useQueryClient();
+
     return useQuery<CourseResponse>({
         queryKey: ['courses', courseCode],
+        // Primary source: look up course in already-fetched catalog
         queryFn: async () => {
+            // Attempt cache lookup first
+            const allCourses = queryClient.getQueryData<CoursesResponse>(['courses']);
+            const cached = allCourses?.find((c) => c.code === courseCode);
+            if (cached) {
+                return cached;
+            }
+            // Fallback: fetch just this one course
             const { data } = await api.get<CourseResponse>(`/courses/${courseCode}`);
             return data;
         },
-        enabled: !!courseCode
+        enabled: !!courseCode,
+        // Provide immediate data from catalog if available to avoid request
+        initialData: () => {
+            const allCourses = queryClient.getQueryData<CoursesResponse>(['courses']);
+            return allCourses?.find((c) => c.code === courseCode);
+        },
+        // Align updatedAt with catalog cache so the data stays in sync
+        initialDataUpdatedAt: () => {
+            const state = queryClient.getQueryState(['courses']);
+            return state?.dataUpdatedAt;
+        }
     });
 };
 

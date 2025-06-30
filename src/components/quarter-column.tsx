@@ -4,10 +4,12 @@ import type React from "react";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CourseCard } from "./course-card";
-import type { Quarter, PlannedCourse } from "@/lib/types";
+import type { Quarter, PlannedCourse, Course } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useCoursesQuery } from "@/hooks/api/useCoursesQuery";
+import { useMemo } from "react";
 
 interface QuarterColumnProps {
   quarter: Quarter;
@@ -22,7 +24,33 @@ export function QuarterColumn({
   onAddCourse,
   className,
 }: QuarterColumnProps) {
-  const totalUnits = quarter.courses.reduce(
+  const { data: allCourses = [] } = useCoursesQuery();
+
+  // Map course code to full course details for quick lookup
+  const courseMap = useMemo(() => {
+    const map: Record<string, Partial<Course>> = {};
+    allCourses.forEach((c) => {
+      if (c.code) {
+        map[c.code] = c;
+      }
+    });
+    return map;
+  }, [allCourses]);
+
+  // Enrich the quarter courses with catalog details (title, units, etc.)
+  const enrichedCourses = useMemo(() => {
+    return quarter.courses.map((course) => {
+      const catalog = courseMap[course.courseCode] || {};
+      return {
+        ...course,
+        code: course.code ?? catalog.code ?? course.courseCode,
+        title: course.title ?? catalog.title,
+        units: course.units ?? catalog.units,
+      } as PlannedCourse;
+    });
+  }, [quarter.courses, courseMap]);
+
+  const totalUnits = enrichedCourses.reduce(
     (sum, course) => sum + (course.units ?? 0),
     0
   );
@@ -55,10 +83,13 @@ export function QuarterColumn({
         onDragOver={handleDragOver}
         onDrop={handleDrop}
       >
-        {quarter.courses.map((course) => (
-          <CourseCard key={course.id} course={course} />
-        ))}
-        {quarter.courses.length === 0 && (
+        {enrichedCourses.map((course, index) => {
+          const key =
+            course.id ??
+            `${course.courseCode ?? course.code ?? "unknown"}-${index}`;
+          return <CourseCard key={key} course={course} />;
+        })}
+        {enrichedCourses.length === 0 && (
           <div className="flex items-center justify-center h-32 border-2 border-dashed border-muted-foreground/25 rounded-lg">
             <p className="text-muted-foreground text-sm">Drop courses here</p>
           </div>

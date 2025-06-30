@@ -6,10 +6,104 @@ import {
   useRemoveCompletedCourseMutation,
 } from "@/hooks/api/usePlanQuery";
 import { Checkbox } from "@/components/ui/checkbox";
+import { useCoursesQuery } from "@/hooks/api/useCoursesQuery";
 
 interface RequirementChecklistProps {
   requirements: RequirementGroup[];
 }
+
+interface CourseItemProps {
+  courseCode: string;
+  status: "completed" | "planned" | "not-started";
+  onToggleCompletion: (code: string) => void;
+}
+
+const CourseItem: React.FC<CourseItemProps> = ({
+  courseCode,
+  status,
+  onToggleCompletion,
+}) => {
+  const [isExpanded, setIsExpanded] = useState(false);
+  const { data: allCourses = [], isLoading } = useCoursesQuery();
+  const course = allCourses.find((c) => c.code === courseCode);
+
+  const borderStyles =
+    status === "completed"
+      ? "border-green-500 bg-green-50"
+      : status === "planned"
+        ? "border-blue-500 bg-blue-50"
+        : "border-gray-200";
+
+  return (
+    <div className={`mb-2 rounded-md border transition-all ${borderStyles}`}>
+      {/* Collapsed row */}
+      <div
+        className="p-3 flex items-center justify-between cursor-pointer"
+        onClick={() => setIsExpanded((prev) => !prev)}
+      >
+        <div className="flex items-center gap-2">
+          <Checkbox
+            checked={status === "completed"}
+            onCheckedChange={() => onToggleCompletion(courseCode)}
+            className="h-4 w-4"
+          />
+          <span
+            className={`font-medium ${
+              status === "completed" ? "line-through text-gray-500" : ""
+            }`}
+          >
+            {courseCode}
+          </span>
+          {status === "planned" && (
+            <span className="text-xs px-2 py-0.5 bg-blue-100 text-blue-800 rounded-full">
+              Planned
+            </span>
+          )}
+        </div>
+
+        <svg
+          className={`h-5 w-5 text-gray-400 transition-transform ${
+            isExpanded ? "transform rotate-180" : ""
+          }`}
+          xmlns="http://www.w3.org/2000/svg"
+          viewBox="0 0 20 20"
+          fill="currentColor"
+        >
+          <path
+            fillRule="evenodd"
+            d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"
+            clipRule="evenodd"
+          />
+        </svg>
+      </div>
+
+      {/* Expanded details */}
+      {isExpanded && (
+        <div className="px-3 pb-3 pt-0 border-t border-gray-100 mt-1 text-sm text-gray-700 space-y-2">
+          {isLoading && <p>Loading details...</p>}
+
+          {!isLoading && course && (
+            <>
+              {course.title && <p className="font-medium">{course.title}</p>}
+              {course.units !== undefined && (
+                <p className="text-gray-600">
+                  {course.units} {course.units === 1 ? "unit" : "units"}
+                </p>
+              )}
+              {course.description && <p>{course.description}</p>}
+            </>
+          )}
+
+          {!isLoading && !course && (
+            <p className="italic text-gray-500">
+              Course information not found.
+            </p>
+          )}
+        </div>
+      )}
+    </div>
+  );
+};
 
 const RequirementChecklist: React.FC<RequirementChecklistProps> = ({
   requirements,
@@ -30,18 +124,6 @@ const RequirementChecklist: React.FC<RequirementChecklistProps> = ({
       if (c.status === "planned") plannedCourses.push(c.courseCode);
     });
   });
-
-  const [expandedCourses, setExpandedCourses] = useState<
-    Record<string, boolean>
-  >({});
-
-  // Toggle expanded state for a course
-  const toggleCourse = (courseCode: string) => {
-    setExpandedCourses((prev) => ({
-      ...prev,
-      [courseCode]: !prev[courseCode],
-    }));
-  };
 
   const getCourseStatus = (courseCode: string) => {
     if (completedCourses.includes(courseCode)) {
@@ -130,76 +212,6 @@ const RequirementChecklist: React.FC<RequirementChecklistProps> = ({
     };
   };
 
-  const renderCourseItem = (courseCode: string) => {
-    const status = getCourseStatus(courseCode);
-    const isExpanded = !!expandedCourses[courseCode];
-
-    return (
-      <div
-        key={courseCode}
-        className={`
-          mb-2 rounded-md border transition-all
-          ${
-            status === "completed"
-              ? "border-green-500 bg-green-50"
-              : status === "planned"
-                ? "border-blue-500 bg-blue-50"
-                : "border-gray-200"
-          }
-        `}
-      >
-        <div
-          className="p-3 flex items-center justify-between cursor-pointer"
-          onClick={() => toggleCourse(courseCode)}
-        >
-          <div className="flex items-center gap-2">
-            <Checkbox
-              checked={status === "completed"}
-              onCheckedChange={() => handleToggleCompletion(courseCode)}
-              className="h-4 w-4"
-            />
-            <span
-              className={`font-medium ${
-                status === "completed" ? "line-through text-gray-500" : ""
-              }`}
-            >
-              {courseCode}
-            </span>
-            {status === "planned" && (
-              <span className="text-xs px-2 py-0.5 bg-blue-100 text-blue-800 rounded-full">
-                Planned
-              </span>
-            )}
-          </div>
-
-          <svg
-            className={`h-5 w-5 text-gray-400 transition-transform ${
-              isExpanded ? "transform rotate-180" : ""
-            }`}
-            xmlns="http://www.w3.org/2000/svg"
-            viewBox="0 0 20 20"
-            fill="currentColor"
-          >
-            <path
-              fillRule="evenodd"
-              d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"
-              clipRule="evenodd"
-            />
-          </svg>
-        </div>
-
-        {isExpanded && (
-          <div className="px-3 pb-3 pt-0 border-t border-gray-100 mt-1">
-            <p className="text-sm text-gray-600">
-              Course details will appear here when connected to the course
-              catalog.
-            </p>
-          </div>
-        )}
-      </div>
-    );
-  };
-
   return (
     <div className="space-y-6">
       {requirements.map((requirement) => {
@@ -233,7 +245,14 @@ const RequirementChecklist: React.FC<RequirementChecklistProps> = ({
                     Required Courses:
                   </h4>
                   <div className="space-y-2">
-                    {(requirement.coursesRequired ?? []).map(renderCourseItem)}
+                    {(requirement.coursesRequired ?? []).map((courseCode) => (
+                      <CourseItem
+                        key={courseCode}
+                        courseCode={courseCode}
+                        status={getCourseStatus(courseCode)}
+                        onToggleCompletion={handleToggleCompletion}
+                      />
+                    ))}
                   </div>
                 </div>
               )}
@@ -246,7 +265,14 @@ const RequirementChecklist: React.FC<RequirementChecklistProps> = ({
                   </h4>
                   <div className="space-y-2">
                     {requirement.chooseFrom.options.length > 0 ? (
-                      requirement.chooseFrom.options.map(renderCourseItem)
+                      requirement.chooseFrom.options.map((courseCode) => (
+                        <CourseItem
+                          key={courseCode}
+                          courseCode={courseCode}
+                          status={getCourseStatus(courseCode)}
+                          onToggleCompletion={handleToggleCompletion}
+                        />
+                      ))
                     ) : (
                       <p className="text-sm italic text-gray-500 p-3 bg-gray-50 rounded-md">
                         Courses must be approved by an advisor

@@ -38,8 +38,8 @@ export default function PlanDetailPage() {
     typeof params?.id === "string"
       ? params.id
       : Array.isArray(params?.id)
-      ? params.id[0]
-      : "";
+        ? params.id[0]
+        : "";
 
   const { data: plan, isLoading } = usePlanQuery(planId);
 
@@ -67,19 +67,32 @@ export default function PlanDetailPage() {
     }
   }, [plan?.quarters]);
 
-  const addQuarter = async () => {
+  const addQuarter = async (direction: "prev" | "next") => {
     if (!planId) return;
 
-    const newQuarter: Quarter = {
-      id: `quarter-${Date.now()}`,
-      name: `New Quarter ${quarters.length + 1}`,
-      year: 2025,
-      season: "Fall",
-      courses: [],
-    };
+    // Reference quarter: first for prev, last for next
+    const reference =
+      direction === "prev" ? quarters[0] : quarters[quarters.length - 1];
 
-    const updatedQuarters = [...quarters, newQuarter];
-    // Optimistically update UI
+    if (!reference) return;
+
+    const meta = shiftQuarter(
+      {
+        season: (reference.season as Season) ?? "Fall",
+        year: reference.year ?? new Date().getFullYear(),
+      },
+      direction === "next" ? 1 : -1,
+      plan?.includeSummer ?? true
+    );
+
+    const newQuarter = buildQuarter(meta);
+
+    const updatedQuarters =
+      direction === "prev"
+        ? [newQuarter, ...quarters]
+        : [...quarters, newQuarter];
+
+    // Optimistic UI update
     setQuarters(updatedQuarters);
 
     await updatePlanMutation.mutateAsync({
@@ -159,10 +172,58 @@ export default function PlanDetailPage() {
               </div>
 
               <div className="mt-6 flex justify-center">
-                <Button onClick={addQuarter} variant="outline">
-                  <Plus className="h-4 w-4 mr-2" />
-                  Add Quarter
-                </Button>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline">
+                      <Plus className="h-4 w-4 mr-2" /> Add Quarter
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent>
+                    {quarters.length > 0 && (
+                      <>
+                        {/* Previous quarter option */}
+                        <DropdownMenuItem onSelect={() => addQuarter("prev")}>
+                          Previous (
+                          {(() => {
+                            const first = quarters[0];
+                            const meta = shiftQuarter(
+                              {
+                                season: (first.season as Season) ?? "Fall",
+                                year: first.year ?? new Date().getFullYear(),
+                              },
+                              -1,
+                              plan?.includeSummer ?? true
+                            );
+                            return `${meta.season} ${meta.year}`;
+                          })()}
+                          )
+                        </DropdownMenuItem>
+                        {/* Next quarter option */}
+                        <DropdownMenuItem onSelect={() => addQuarter("next")}>
+                          Next (
+                          {(() => {
+                            const last = quarters[quarters.length - 1];
+                            const meta = shiftQuarter(
+                              {
+                                season: (last.season as Season) ?? "Fall",
+                                year: last.year ?? new Date().getFullYear(),
+                              },
+                              1,
+                              plan?.includeSummer ?? true
+                            );
+                            return `${meta.season} ${meta.year}`;
+                          })()}
+                          )
+                        </DropdownMenuItem>
+                      </>
+                    )}
+                    {quarters.length === 0 && (
+                      <DropdownMenuItem onSelect={() => addQuarter("next")}>
+                        Add Initial Quarter
+                      </DropdownMenuItem>
+                    )}
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </div>
 
               {/* Course search dialog */}
