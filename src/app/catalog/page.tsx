@@ -32,10 +32,12 @@ import { useCoursesQuery } from "@/hooks/api/useCoursesQuery";
 import {
   useAddPlannedCourseMutation,
   usePlansQuery,
+  useUpdatePlanMutation,
 } from "@/hooks/api/usePlanQuery";
 import { usePlannerStore } from "@/hooks/usePlannerStore";
-import type { Course } from "@/lib/types";
+import type { Course, Quarter, PlannedCourse } from "@/lib/types";
 import { Search, Filter, Plus, BookOpen } from "lucide-react";
+import { toast } from "sonner";
 
 export default function CatalogPage() {
   const [searchQuery, setSearchQuery] = useState("");
@@ -48,7 +50,12 @@ export default function CatalogPage() {
   });
 
   const { data: courses = [], isLoading } = useCoursesQuery();
-  const { userId, addPlannedCourse, currentPlanId } = usePlannerStore();
+  const {
+    userId,
+    addPlannedCourse,
+    currentPlanId,
+    updatePlan: updatePlanInStore,
+  } = usePlannerStore();
   const { data: plans } = usePlansQuery(userId ?? "");
 
   const activePlan = currentPlanId
@@ -56,6 +63,7 @@ export default function CatalogPage() {
     : plans?.[0];
 
   const addPlannedCourseMutation = useAddPlannedCourseMutation();
+  const updatePlanMutation = useUpdatePlanMutation();
 
   // Gather codes already planned (optimistic via store)
   const plannedCourseCodes = new Set<string>();
@@ -68,8 +76,39 @@ export default function CatalogPage() {
   const handleAddToPlan = async () => {
     if (!selectedCourse || !activePlan) return;
 
-    // If there are multiple quarters, ask which one; default to first.
+    // Ensure the plan has at least one quarter
     let targetQuarterId = activePlan.quarters[0]?.id ?? "";
+
+    if (!targetQuarterId) {
+      // Create a default quarter if none exist
+      const currentYear = new Date().getFullYear();
+      const defaultQuarterId = `Fall-${currentYear}`;
+      const newQuarter: Quarter = {
+        id: defaultQuarterId,
+        name: `Fall ${currentYear}`,
+        courses: [] as PlannedCourse[],
+      };
+
+      // Optimistically update local store
+      updatePlanInStore(activePlan.id!, {
+        quarters: [newQuarter],
+      });
+
+      // Persist the new quarter to backend
+      try {
+        await updatePlanMutation.mutateAsync({
+          planId: activePlan.id!,
+          updates: { quarters: [newQuarter] },
+        });
+        targetQuarterId = defaultQuarterId;
+      } catch (err) {
+        console.error("Failed to create default quarter", err);
+        // Revert optimistic update if needed – for now just log
+        return;
+      }
+    }
+
+    // If there are multiple quarters, ask which one; default to first.
     if (activePlan.quarters.length > 1) {
       const input = window.prompt(
         `Enter quarter ID to add this course. Available: ${activePlan.quarters
@@ -92,8 +131,7 @@ export default function CatalogPage() {
       quarter: targetQuarterId,
     });
 
-    // Optional: user feedback
-    alert(`Added ${selectedCourse.code} to plan`);
+    toast.success(`Added ${selectedCourse.code} to plan`);
   };
 
   const filteredCourses = courses.filter((course) => {
