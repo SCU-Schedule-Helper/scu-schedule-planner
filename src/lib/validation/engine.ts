@@ -115,6 +115,25 @@ export function validatePlan({
             }
             codesInThisQuarter.add(code);
 
+            // New: warn if the student already completed this course earlier
+            if (completedSet.has(code)) {
+                // Plan-level warning so it shows up in aggregate list
+                addWarning(messages, {
+                    code: "COURSE_ALREADY_COMPLETED",
+                    message: `${code} was already completed and is being scheduled again`,
+                    context: { quarter: qName, course: code },
+                });
+
+                // Course-specific warning so the card can highlight the issue
+                const cr = getOrCreateCourseReport(courseReports, code);
+                cr.messages.push({
+                    code: "ALREADY_COMPLETED",
+                    level: "warning",
+                    message: `${code} already completed`,
+                    context: { quarter: qName },
+                });
+            }
+
             if (seenCourseCodes.has(code)) {
                 addError(messages, {
                     code: "DUPLICATE_COURSE",

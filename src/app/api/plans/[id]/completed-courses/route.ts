@@ -57,9 +57,11 @@ export async function POST(
         // Prevent duplicates
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const already = (completed as any[]).find((c) => (c as any).courseCode === payload.courseCode);
-        if (!already) {
-            completed.push(newCompletedCourse);
+        if (already) {
+            return NextResponse.json({ error: 'Course already completed' }, { status: 409 });
         }
+
+        completed.push(newCompletedCourse);
 
         const newMetadata: Json = {
             ...metadata,
