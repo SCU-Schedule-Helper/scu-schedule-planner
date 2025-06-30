@@ -15,6 +15,7 @@ import {
   CommandItem,
 } from "@/components/ui/command";
 import { useSearchCoursesQuery } from "@/hooks/api/useCoursesQuery";
+import { useDebounce } from "use-debounce";
 import type { Course } from "@/lib/types";
 
 interface AddCourseDialogProps {
@@ -32,10 +33,12 @@ export function AddCourseDialog({
   onSelectCourse,
 }: AddCourseDialogProps) {
   const [search, setSearch] = useState("");
+  // Debounce user input to avoid firing queries on every keystroke
+  const [debouncedSearch] = useDebounce(search, 200);
 
   // Only fire FTS when at least 2 chars
   const { data: results = [], isLoading } = useSearchCoursesQuery(
-    search.length >= 2 ? search : null
+    debouncedSearch.length >= 2 ? debouncedSearch : null
   );
 
   const handleSelect = (code: string) => {
@@ -45,8 +48,9 @@ export function AddCourseDialog({
     onOpenChange(false);
   };
 
-  // combine empty state for zero results once user typed
-  const showEmpty = !isLoading && search.length >= 2 && results.length === 0;
+  // combine empty state for zero results once user typed (after debounce)
+  const showEmpty =
+    !isLoading && debouncedSearch.length >= 2 && results.length === 0;
 
   return (
     <Dialog
