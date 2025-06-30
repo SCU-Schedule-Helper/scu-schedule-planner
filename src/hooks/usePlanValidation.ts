@@ -5,18 +5,21 @@ import type {
     ValidationSettings,
 } from "@lib/validation/types";
 import { usePlannerStore } from "@/hooks/usePlannerStore";
-import { Courses as CatalogCourses } from "@/data/courses";
+import { useCoursesQuery } from "@/hooks/api/useCoursesQuery";
 import {
     CSMajorRequirements,
     UniversityCoreRequirements,
 } from "@/data/requirements";
 import { useShallow } from "zustand/shallow";
+import type { Course } from "@/lib/types";
 
 // Aggregate all requirements until dynamic selection is implemented
 const ALL_REQUIREMENTS = [...CSMajorRequirements, ...UniversityCoreRequirements];
 
 export function usePlanValidation(planOverride?: import("@/lib/types").UserPlan | null, settingsOverride?: Partial<ValidationSettings>) {
     const { plans, currentPlanId } = usePlannerStore(useShallow((s) => ({ plans: s.plans, currentPlanId: s.currentPlanId })));
+    // Fetch catalog courses from Supabase via React Query
+    const { data: catalogCourses = [] } = useCoursesQuery();
     const storePlan = plans.find((p) => p.id === currentPlanId);
     const plan = planOverride ?? storePlan;
 
@@ -35,8 +38,12 @@ export function usePlanValidation(planOverride?: import("@/lib/types").UserPlan 
         // Store last planKey to avoid JSON.stringify cost if needed
         lastPlanKey.current = planKey;
         try {
+            const courseMap = catalogCourses.reduce<Record<string, Course>>((acc, c) => {
+                if (c.code) acc[c.code] = c;
+                return acc;
+            }, {});
             return validatePlan({
-                courses: CatalogCourses,
+                courses: courseMap,
                 requirements: ALL_REQUIREMENTS,
                 plan,
                 settings,
@@ -45,7 +52,7 @@ export function usePlanValidation(planOverride?: import("@/lib/types").UserPlan 
             console.error("Validation engine error", err);
             return null;
         }
-    }, [plan ? plan.quarters : null, plan ? plan.completedCourses : null, settings.maxUnitsPerQuarter, settings.includeSummer]);
+    }, [plan ? plan.quarters : null, plan ? plan.completedCourses : null, settings.maxUnitsPerQuarter, settings.includeSummer, catalogCourses]);
 
     return report;
 }

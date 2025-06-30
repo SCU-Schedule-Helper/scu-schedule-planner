@@ -4,7 +4,7 @@ import { createSupabaseServer } from '@/lib/supabase/server';
 import { Json } from '@/lib/database.types';
 import { PlannedCourseSchema } from '@/lib/types';
 import { validatePlan } from '@/lib/validation/engine';
-import { Courses as CatalogCourses } from '@/data/courses';
+import type { Course } from '@/lib/types';
 import { CSMajorRequirements, UniversityCoreRequirements } from '@/data/requirements';
 import type { UserPlan, Quarter as QuarterType, PlannedCourse as PlannedCourseType } from '@/lib/types';
 
@@ -16,6 +16,107 @@ const AddPlannedCourseSchema = z.object({
 type AddPlannedCourse = z.infer<typeof AddPlannedCourseSchema>;
 
 type PlanCourse = { courseCode: string; quarter: string;[key: string]: unknown };
+
+// ------------------------------------------------------------------
+// Helper functions to fetch detailed course info (prereqs/cross-listed)
+// ------------------------------------------------------------------
+
+async function fetchAllCoursesAsMap(supabase: Awaited<ReturnType<typeof createSupabaseServer>>): Promise<Record<string, Course>> {
+    // Fetch base course rows
+    const { data: courses, error } = await supabase.from('courses').select('*');
+    if (error || !courses) {
+        console.error('Error fetching courses for validation:', error);
+        return {};
+    }
+
+    // Helpers
+    const fetchPrerequisites = async (courseId: string) => {
+        const { data: prereqGroups } = await supabase
+            .from('prerequisites')
+            .select('*')
+            .eq('course_id', courseId);
+
+        const prerequisites: {
+            courses: string[];
+            type: string;
+            grade?: string | null;
+        }[] = [];
+
+        if (!prereqGroups || prereqGroups.length === 0) return prerequisites;
+
+        for (const group of prereqGroups) {
+            const { data: prereqCourses } = await supabase
+                .from('prerequisite_courses')
+                .select('prerequisite_course_id(code)')
+                .eq('prerequisite_id', group.id);
+
+            type Row = { prerequisite_course_id: { code: string } };
+            const codes = (prereqCourses as Row[] ?? []).map((row) => row.prerequisite_course_id.code);
+
+            prerequisites.push({
+                courses: codes,
+                type: group.prerequisite_type,
+                grade: group.min_grade ?? undefined,
+            });
+        }
+
+        return prerequisites;
+    };
+
+    const fetchCrossListed = async (courseId: string, selfCode: string): Promise<string[]> => {
+        const { data: rowsForward } = await supabase
+            .from('cross_listed_courses')
+            .select('cross_listed_course_id')
+            .eq('course_id', courseId);
+
+        const { data: rowsBackward } = await supabase
+            .from('cross_listed_courses')
+            .select('course_id')
+            .eq('cross_listed_course_id', courseId);
+
+        const otherIds = [
+            ...(rowsForward?.map((r) => r.cross_listed_course_id) ?? []),
+            ...(rowsBackward?.map((r) => r.course_id) ?? []),
+        ];
+
+        if (otherIds.length === 0) return [];
+
+        const { data: others } = await supabase
+            .from('courses')
+            .select('code')
+            .in('id', otherIds);
+
+        return (others ?? [])
+            .map((c) => c.code)
+            .filter((c): c is string => !!c && c !== selfCode);
+    };
+
+    // Build map with prerequisite/cross-listed info
+    const result: Record<string, Course> = {};
+
+    await Promise.all(
+        courses.map(async (row) => {
+            const [prerequisites, crossListedAs] = await Promise.all([
+                fetchPrerequisites(row.id),
+                fetchCrossListed(row.id, row.code),
+            ]);
+
+            result[row.code] = {
+                id: row.id,
+                code: row.code,
+                title: row.title,
+                units: row.units,
+                description: row.description ?? undefined,
+                department: row.department,
+                isUpperDivision: row.is_upper_division,
+                prerequisites,
+                crossListedAs,
+            } as Course;
+        }),
+    );
+
+    return result;
+}
 
 export async function POST(
     request: Request,
@@ -94,8 +195,10 @@ export async function POST(
             includeSummer: (metadata.includeSummer as boolean) ?? true,
         };
 
+        const courseMap = await fetchAllCoursesAsMap(supabase);
+
         const validation = validatePlan({
-            courses: CatalogCourses,
+            courses: courseMap,
             requirements: allRequirements,
             plan: syntheticPlan,
             settings: {
@@ -114,7 +217,7 @@ export async function POST(
         if (fatalErrors.length > 0) {
             return NextResponse.json(
                 { error: "Validation failed", report: validation },
-                { status: 400 }
+                { status: 422 }
             );
         }
 

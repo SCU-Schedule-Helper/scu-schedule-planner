@@ -158,12 +158,21 @@ export default function PlanDetailPage() {
                           toQuarterId
                         );
 
-                        await movePlannedCourseMutation.mutateAsync({
-                          planId,
-                          courseCode: course.courseCode,
-                          fromQuarter: fromQuarterId,
-                          toQuarter: toQuarterId,
-                        });
+                        try {
+                          await movePlannedCourseMutation.mutateAsync({
+                            planId,
+                            courseCode: course.courseCode,
+                            fromQuarter: fromQuarterId,
+                            toQuarter: toQuarterId,
+                          });
+                        } catch {
+                          // Revert optimistic update on failure
+                          movePlannedCourse(
+                            course.courseCode,
+                            toQuarterId,
+                            fromQuarterId
+                          );
+                        }
                       }}
                       onAddCourse={async (quarterId) => {
                         if (!planId) return;
@@ -240,13 +249,18 @@ export default function PlanDetailPage() {
 
                   addPlannedCourse(courseCode, targetQuarterId); // optimistic
 
-                  await addPlannedCourseMutation.mutateAsync({
-                    planId,
-                    courseCode,
-                    quarter: targetQuarterId,
-                  });
-
-                  setDialogOpen(false);
+                  try {
+                    await addPlannedCourseMutation.mutateAsync({
+                      planId,
+                      courseCode,
+                      quarter: targetQuarterId,
+                    });
+                    setDialogOpen(false);
+                  } catch {
+                    // Roll back on failure
+                    const { removePlannedCourse } = usePlannerStore.getState();
+                    removePlannedCourse(courseCode, targetQuarterId);
+                  }
                 }}
               />
 

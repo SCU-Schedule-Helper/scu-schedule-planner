@@ -1,4 +1,3 @@
-import { Courses as CatalogCourses } from "../../data/courses";
 import type {
     Course,
     RequirementGroup,
@@ -69,7 +68,7 @@ export interface ValidatePlanArgs {
 }
 
 export function validatePlan({
-    courses = CatalogCourses as Record<string, Course>,
+    courses = {} as Record<string, Course>,
     requirements,
     plan,
     settings,

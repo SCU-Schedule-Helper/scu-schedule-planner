@@ -22,7 +22,14 @@ import type { Quarter } from "@/lib/types";
 import { useState } from "react";
 
 export default function DashboardPage() {
-  const { userId, addPlannedCourse, movePlannedCourse } = usePlannerStore();
+  const {
+    userId,
+    addPlannedCourse,
+    movePlannedCourse,
+    removePlannedCourse,
+    currentPlanId,
+    plans: localPlans,
+  } = usePlannerStore();
   const { data: plans } = usePlansQuery(userId ?? "");
   const plan = plans?.[0];
   const quarters = plan?.quarters ?? [];
@@ -153,13 +160,18 @@ export default function DashboardPage() {
 
               addPlannedCourse(courseCode, targetQuarterId);
 
-              await addPlannedCourseMutation.mutateAsync({
-                planId: plan.id,
-                courseCode,
-                quarter: targetQuarterId,
-              });
+              try {
+                await addPlannedCourseMutation.mutateAsync({
+                  planId: plan.id,
+                  courseCode,
+                  quarter: targetQuarterId,
+                });
+                setDialogOpen(false);
+              } catch {
+                // Roll back optimistic update if request failed
 
-              setDialogOpen(false);
+                removePlannedCourse(courseCode, targetQuarterId);
+              }
             }}
           />
         </main>
