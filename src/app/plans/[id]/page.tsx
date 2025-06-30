@@ -31,6 +31,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { buildQuarter, shiftQuarter, Season } from "@/lib/quarter";
 import { PlanSettingsDialog } from "@/components/PlanSettingsDialog";
+import { usePlanValidation } from "@/hooks/usePlanValidation";
 
 export default function PlanDetailPage() {
   const params = useParams();
@@ -59,6 +60,9 @@ export default function PlanDetailPage() {
 
   // settings dialog state
   const [settingsOpen, setSettingsOpen] = useState(false);
+
+  // Validation report
+  const validationReport = usePlanValidation(plan ?? null);
 
   // Sync local quarters state when plan data arrives or updates
   useEffect(() => {
@@ -140,6 +144,7 @@ export default function PlanDetailPage() {
                     <QuarterColumn
                       key={quarter.id}
                       quarter={quarter}
+                      report={validationReport}
                       onDropCourse={async (course, toQuarterId) => {
                         if (!planId) return;
 
