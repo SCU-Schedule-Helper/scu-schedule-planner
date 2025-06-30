@@ -143,6 +143,25 @@ export default function DashboardPage() {
               </div>
             </CardContent>
           </Card>
+
+          {/* Course search dialog */}
+          <AddCourseDialog
+            open={dialogOpen}
+            onOpenChange={(open) => setDialogOpen(open)}
+            onSelectCourse={async (courseCode) => {
+              if (!plan?.id || !targetQuarterId) return;
+
+              addPlannedCourse(courseCode, targetQuarterId);
+
+              await addPlannedCourseMutation.mutateAsync({
+                planId: plan.id,
+                courseCode,
+                quarter: targetQuarterId,
+              });
+
+              setDialogOpen(false);
+            }}
+          />
         </main>
       </div>
     </div>
