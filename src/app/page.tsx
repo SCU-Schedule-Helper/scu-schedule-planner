@@ -17,7 +17,9 @@ import {
 } from "@/hooks/api/usePlanQuery";
 import { usePlannerStore } from "@/hooks/usePlannerStore";
 import { GraduationCap, BookOpen, Target } from "lucide-react";
+import { AddCourseDialog } from "@/components/add-course-dialog";
 import type { Quarter } from "@/lib/types";
+import { useState } from "react";
 
 export default function DashboardPage() {
   const { userId, addPlannedCourse, movePlannedCourse } = usePlannerStore();
@@ -28,22 +30,15 @@ export default function DashboardPage() {
   const addPlannedCourseMutation = useAddPlannedCourseMutation();
   const movePlannedCourseMutation = useMovePlannedCourseMutation();
 
+  // dialog state for adding course
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [targetQuarterId, setTargetQuarterId] = useState<string | null>(null);
+
   const handleAddCourse = async (quarterId: string) => {
     if (!plan?.id) return;
 
-    // For now ask for a course code – replace with proper modal later
-    const courseCode = window.prompt(
-      "Enter course code to add to this quarter"
-    );
-    if (!courseCode) return;
-
-    addPlannedCourse(courseCode, quarterId); // optimistic local update
-
-    await addPlannedCourseMutation.mutateAsync({
-      planId: plan.id,
-      courseCode,
-      quarter: quarterId,
-    });
+    setTargetQuarterId(quarterId);
+    setDialogOpen(true);
   };
 
   const handleDropCourse = async (

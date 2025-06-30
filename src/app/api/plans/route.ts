@@ -4,6 +4,7 @@ import { ApiUserPlanSchema } from '@/lib/store/planStore';
 import { createSupabaseServer } from '@/lib/supabase/server';
 import { Json } from '@/lib/database.types';
 import { PlannedCourse, Quarter } from '@/lib/types';
+import { buildQuarter, getQuarterForDate } from '@/lib/quarter';
 
 export async function GET(request: Request) {
     try {
@@ -71,13 +72,16 @@ export async function POST(request: Request) {
 
         const supabase = await createSupabaseServer();
 
+        // Default quarter is the current one based on server date
+        const defaultQuarter = buildQuarter(getQuarterForDate());
+
         // Create metadata object for additional fields
         const metadata = {
             major_id: plan.majorId,
             catalog_year_id: plan.catalogYearId,
             max_units_per_quarter: plan.maxUnitsPerQuarter,
             include_summer: plan.includeSummer,
-            quarters: plan.quarters || [],
+            quarters: plan.quarters && plan.quarters.length > 0 ? plan.quarters : [defaultQuarter],
             completed_courses: plan.completedCourses || []
         };
 
