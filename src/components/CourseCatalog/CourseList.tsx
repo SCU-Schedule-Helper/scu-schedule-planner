@@ -42,8 +42,8 @@ const CourseList: React.FC<CourseListProps> = ({
       <div className="divide-y">
         {courses.map((course) => (
           <div
-            key={course.code}
-            onClick={() => onSelectCourse(course.code)}
+            key={course.code ?? String(Math.random())}
+            onClick={() => onSelectCourse(course.code ?? "")}
             className="grid grid-cols-[auto,1fr,auto] p-3 hover:bg-gray-50 cursor-pointer"
           >
             <div className="px-2 font-medium">{course.code}</div>

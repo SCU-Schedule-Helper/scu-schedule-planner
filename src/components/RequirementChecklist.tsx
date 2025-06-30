@@ -76,11 +76,12 @@ const RequirementChecklist: React.FC<RequirementChecklistProps> = ({
   // Calculate progress for a requirement group
   const calculateProgress = (requirement: RequirementGroup) => {
     // For required courses
-    const requiredTotal = requirement.coursesRequired.length;
-    const requiredCompleted = requirement.coursesRequired.filter((course) =>
+    const reqCourses = requirement.coursesRequired ?? [];
+    const requiredTotal = reqCourses.length;
+    const requiredCompleted = reqCourses.filter((course) =>
       completedCourses.includes(course)
     ).length;
-    const requiredPlanned = requirement.coursesRequired.filter((course) =>
+    const requiredPlanned = reqCourses.filter((course) =>
       plannedCourses.includes(course)
     ).length;
 
@@ -229,13 +230,13 @@ const RequirementChecklist: React.FC<RequirementChecklistProps> = ({
               </div>
 
               {/* Required Courses */}
-              {requirement.coursesRequired.length > 0 && (
+              {(requirement.coursesRequired?.length ?? 0) > 0 && (
                 <div className="mb-4">
                   <h4 className="font-medium text-sm text-gray-500 mb-2">
                     Required Courses:
                   </h4>
                   <div className="space-y-2">
-                    {requirement.coursesRequired.map(renderCourseItem)}
+                    {(requirement.coursesRequired ?? []).map(renderCourseItem)}
                   </div>
                 </div>
               )}

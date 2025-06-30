@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import useSupabaseBrowser from "@/lib/supabase/client";
+import { usePlannerStore } from "@/hooks/usePlannerStore";
 
 export default function Login() {
   const [email, setEmail] = useState("");
@@ -12,6 +13,7 @@ export default function Login() {
   const [mode, setMode] = useState<"login" | "signup">("login");
   const router = useRouter();
   const supabase = useSupabaseBrowser();
+  const { setUserId } = usePlannerStore();
 
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -20,16 +22,21 @@ export default function Login() {
 
     try {
       if (mode === "login") {
-        const { error } = await supabase.auth.signInWithPassword({
+        const { data, error } = await supabase.auth.signInWithPassword({
           email,
           password,
         });
 
         if (error) throw error;
+
+        // Persist userId in global store
+        if (data.user) {
+          setUserId(data.user.id);
+        }
         router.push("/");
         router.refresh();
       } else {
-        const { error } = await supabase.auth.signUp({
+        const { data: signUpData, error } = await supabase.auth.signUp({
           email,
           password,
           options: {
@@ -38,6 +45,10 @@ export default function Login() {
         });
 
         if (error) throw error;
+
+        if (signUpData?.user) {
+          setUserId(signUpData.user.id);
+        }
 
         // Show success message for signup
         setError("Check your email for the confirmation link!");

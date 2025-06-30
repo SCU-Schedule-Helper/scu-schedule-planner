@@ -166,6 +166,9 @@ export const useAddPlannedCourseMutation = () => {
         },
         onSuccess: (data, variables) => {
             queryClient.invalidateQueries({ queryKey: ['plans', 'detail', variables.planId] });
+            if (data && 'userId' in data && data.userId) {
+                queryClient.invalidateQueries({ queryKey: ['plans', data.userId] });
+            }
         }
     });
 };
@@ -194,6 +197,9 @@ export const useMovePlannedCourseMutation = () => {
         },
         onSuccess: (data, variables) => {
             queryClient.invalidateQueries({ queryKey: ['plans', 'detail', variables.planId] });
+            if (data && 'userId' in data && data.userId) {
+                queryClient.invalidateQueries({ queryKey: ['plans', data.userId] });
+            }
         }
     });
 };
@@ -218,6 +224,9 @@ export const useAddSubstitutionMutation = () => {
         },
         onSuccess: (data, variables) => {
             queryClient.invalidateQueries({ queryKey: ['plans', 'detail', variables.planId] });
+            if (data && 'userId' in data && data.userId) {
+                queryClient.invalidateQueries({ queryKey: ['plans', data.userId] });
+            }
         }
     });
 };

@@ -61,7 +61,24 @@ INSERT INTO courses (code, title, units, department, is_upper_division, descript
     ('CSCI 10', 'Introduction to Computer Science', 5, 'CSCI', false, 'Introduction to computer science and programming in Python.'),
     ('CSCI 60', 'Object-Oriented Programming', 5, 'CSCI', false, 'Object-oriented programming techniques using C++.'),
     ('CSCI 61', 'Data Structures', 4, 'CSCI', false, 'Specification, implementations, and analysis of basic data structures.'),
-    ('CSCI 62', 'Advanced Programming', 4, 'CSCI', false, 'Advanced object-oriented programming and applications.');
+    ('CSCI 62', 'Advanced Programming', 4, 'CSCI', false, 'Advanced object-oriented programming and applications.'),
+    ('CSCI 127', 'Introduction to Data Science', 5, 'CSCI', true, 'Foundations of data science and analytics.'),
+    ('CSCI 146', 'Advanced Algorithms I', 5, 'CSCI', true, 'Design and analysis of advanced algorithms.'),
+    ('CSCI 147', 'Advanced Algorithms II', 5, 'CSCI', true, 'Continuation of advanced algorithmic techniques.'),
+    ('CSCI 161', 'Theory of Automata and Languages', 5, 'CSCI', true, 'Automata theory, formal languages, and computability.'),
+    ('CSCI 162', 'Algorithms and Complexity', 5, 'CSCI', true, 'In-depth study of algorithms and computational complexity.'),
+    ('CSCI 163', 'Theory of Algorithms', 5, 'CSCI', true, 'Algorithm design techniques and complexity analysis.'),
+    ('CSCI 164', 'Programming Languages', 5, 'CSCI', true, 'Principles and paradigms of modern programming languages.'),
+    ('CSCI 165', 'Parallel and Distributed Algorithms', 5, 'CSCI', true, 'Design of parallel and distributed algorithms.'),
+    ('CSCI 166', 'Artificial Intelligence', 5, 'CSCI', true, 'Fundamentals of artificial intelligence and machine learning.'),
+    ('CSCI 168', 'Software Project Management', 5, 'CSCI', true, 'Principles of managing large software projects.'),
+    ('CSCI 169', 'Web Search and Information Retrieval', 5, 'CSCI', true, 'Search engine technology and information retrieval.'),
+    ('CSCI 180', 'Introduction to Computer Security', 5, 'CSCI', true, 'Principles of computer and network security.'),
+    ('CSCI 181', 'Cryptography and Network Security', 5, 'CSCI', true, 'Cryptographic techniques and secure communication.'),
+    ('CSCI 183', 'Data Mining', 5, 'CSCI', true, 'Techniques and applications of data mining.'),
+    ('CSCI 184', 'Machine Learning', 5, 'CSCI', true, 'Supervised and unsupervised machine learning algorithms.'),
+    ('CSCI 185', 'Big Data Analytics', 5, 'CSCI', true, 'Systems and algorithms for big data.'),
+    ('CSCI 187', 'Software Engineering', 5, 'CSCI', true, 'Advanced topics in software engineering.');
 
 -- Add cross-listed courses
 INSERT INTO cross_listed_courses (course_id, cross_listed_course_id)
@@ -528,4 +545,423 @@ WHERE (c1.code = 'CSEN 10' AND c2.code = 'CSEN 10L') OR
       (c1.code = 'CSEN 161' AND c2.code = 'CSEN 161L') OR
       (c1.code = 'CSEN 164' AND c2.code = 'CSEN 164L') OR
       (c1.code = 'CSEN 169' AND c2.code = 'CSEN 169L') OR
-      (c1.code = 'CSEN 174' AND c2.code = 'CSEN 174L'); 
+      (c1.code = 'CSEN 174' AND c2.code = 'CSEN 174L');
+
+-- University Core courses
+INSERT INTO courses (code, title, units, department, is_upper_division, description) VALUES
+    ('CTW 1', 'Critical Thinking & Writing 1', 4, 'CTW', false, 'University core course.'),
+    ('CTW 2', 'Critical Thinking & Writing 2', 4, 'CTW', false, 'University core course.'),
+    ('C&I 1', 'Cultures & Ideas 1', 4, 'C&I', false, 'University core course.'),
+    ('C&I 2', 'Cultures & Ideas 2', 4, 'C&I', false, 'University core course.'),
+    ('C&I 3', 'Cultures & Ideas 3', 4, 'C&I', false, 'University core course.'),
+    ('RTC 1', 'Religion, Theology & Culture 1', 4, 'RTC', false, 'University core course.'),
+    ('RTC 2', 'Religion, Theology & Culture 2', 4, 'RTC', false, 'University core course.'),
+    ('RTC 3', 'Religion, Theology & Culture 3', 4, 'RTC', false, 'University core course.'),
+    ('DIV 1', 'Diversity 1', 4, 'DIV', false, 'University core course.'),
+    ('ETH 1', 'Ethics 1', 4, 'ETH', false, 'University core course.'),
+    ('ELSJ 1', 'Experiential Learning for Social Justice', 4, 'ELSJ', false, 'University core course.'),
+    ('SOC 1', 'Social Science 1', 4, 'SOC', false, 'University core course.'),
+    ('CIV 1', 'Civic Engagement 1', 4, 'CIV', false, 'University core course.'),
+    ('SPAN 21A', 'Second Language Spanish 21A', 4, 'SPAN', false, 'University core course.'),
+    ('ARTS 1', 'Arts 1', 4, 'ARTS', false, 'University core course.'),
+    ('NATSCI 1', 'Natural Science 1', 4, 'NATSCI', false, 'University core course.'),
+    ('SCIT 1', 'Science, Technology, and Society 1', 4, 'SCIT', false, 'University core course.'),
+    ('ADVWR 1', 'Advanced Writing 1', 4, 'ADVWR', false, 'University core course.');
+
+-- University Core Requirements
+-- Critical Thinking & Writing
+WITH ctw_req AS (
+    INSERT INTO requirements (name, type)
+    VALUES ('Critical Thinking & Writing', 'university')
+    RETURNING id
+)
+INSERT INTO requirement_courses (requirement_id, course_id)
+SELECT ctw_req.id, c.id
+FROM ctw_req, courses c
+WHERE c.code IN ('CTW 1', 'CTW 2');
+
+-- Cultures & Ideas
+WITH ci_req AS (
+    INSERT INTO requirements (name, type)
+    VALUES ('Cultures & Ideas', 'university')
+    RETURNING id
+)
+INSERT INTO requirement_courses (requirement_id, course_id)
+SELECT ci_req.id, c.id
+FROM ci_req, courses c
+WHERE c.code IN ('C&I 1', 'C&I 2', 'C&I 3');
+
+-- Religion, Theology & Culture
+WITH rtc_req AS (
+    INSERT INTO requirements (name, type)
+    VALUES ('Religion, Theology & Culture', 'university')
+    RETURNING id
+)
+INSERT INTO requirement_courses (requirement_id, course_id)
+SELECT rtc_req.id, c.id
+FROM rtc_req, courses c
+WHERE c.code IN ('RTC 1', 'RTC 2', 'RTC 3');
+
+-- Diversity
+WITH div_req AS (
+    INSERT INTO requirements (name, type)
+    VALUES ('Diversity', 'university')
+    RETURNING id
+)
+INSERT INTO requirement_courses (requirement_id, course_id)
+SELECT div_req.id, c.id
+FROM div_req, courses c
+WHERE c.code = 'DIV 1';
+
+-- Ethics
+WITH eth_req AS (
+    INSERT INTO requirements (name, type)
+    VALUES ('Ethics', 'university')
+    RETURNING id
+)
+INSERT INTO requirement_courses (requirement_id, course_id)
+SELECT eth_req.id, c.id
+FROM eth_req, courses c
+WHERE c.code = 'ETH 1';
+
+-- ELSJ
+WITH elsj_req AS (
+    INSERT INTO requirements (name, type)
+    VALUES ('ELSJ', 'university')
+    RETURNING id
+)
+INSERT INTO requirement_courses (requirement_id, course_id)
+SELECT elsj_req.id, c.id
+FROM elsj_req, courses c
+WHERE c.code = 'ELSJ 1';
+
+-- Social Science
+WITH soc_req AS (
+    INSERT INTO requirements (name, type)
+    VALUES ('Social Science', 'university')
+    RETURNING id
+)
+INSERT INTO requirement_courses (requirement_id, course_id)
+SELECT soc_req.id, c.id
+FROM soc_req, courses c
+WHERE c.code = 'SOC 1';
+
+-- Civic Engagement
+WITH civ_req AS (
+    INSERT INTO requirements (name, type)
+    VALUES ('Civic Engagement', 'university')
+    RETURNING id
+)
+INSERT INTO requirement_courses (requirement_id, course_id)
+SELECT civ_req.id, c.id
+FROM civ_req, courses c
+WHERE c.code = 'CIV 1';
+
+-- Second Language
+WITH lang_req AS (
+    INSERT INTO requirements (name, type)
+    VALUES ('Second Language', 'university')
+    RETURNING id
+)
+INSERT INTO requirement_courses (requirement_id, course_id)
+SELECT lang_req.id, c.id
+FROM lang_req, courses c
+WHERE c.code = 'SPAN 21A';
+
+-- Arts
+WITH arts_req AS (
+    INSERT INTO requirements (name, type)
+    VALUES ('Arts', 'university')
+    RETURNING id
+)
+INSERT INTO requirement_courses (requirement_id, course_id)
+SELECT arts_req.id, c.id
+FROM arts_req, courses c
+WHERE c.code = 'ARTS 1';
+
+-- Natural Science
+WITH natsci_req AS (
+    INSERT INTO requirements (name, type)
+    VALUES ('Natural Science', 'university')
+    RETURNING id
+)
+INSERT INTO requirement_courses (requirement_id, course_id)
+SELECT natsci_req.id, c.id
+FROM natsci_req, courses c
+WHERE c.code = 'NATSCI 1';
+
+-- Science, Technology, and Society
+WITH sts_req AS (
+    INSERT INTO requirements (name, type)
+    VALUES ('Science, Technology, and Society', 'university')
+    RETURNING id
+)
+INSERT INTO requirement_courses (requirement_id, course_id)
+SELECT sts_req.id, c.id
+FROM sts_req, courses c
+WHERE c.code = 'SCIT 1';
+
+-- Advanced Writing
+WITH advwr_req AS (
+    INSERT INTO requirements (name, type)
+    VALUES ('Advanced Writing', 'university')
+    RETURNING id
+)
+INSERT INTO requirement_courses (requirement_id, course_id)
+SELECT advwr_req.id, c.id
+FROM advwr_req, courses c
+WHERE c.code = 'ADVWR 1';
+
+-- Math (University Core Math requirement)
+WITH math_uc_req AS (
+    INSERT INTO requirements (name, type)
+    VALUES ('Math', 'university')
+    RETURNING id
+)
+INSERT INTO requirement_courses (requirement_id, course_id)
+SELECT math_uc_req.id, c.id
+FROM math_uc_req, courses c
+WHERE c.code = 'MATH 11';
+
+-- =====================================================================
+-- Computer Science Emphasis Requirements
+-- =====================================================================
+
+-- ================= Algorithms and Complexity Emphasis ================
+-- Required courses
+WITH algo_req_required AS (
+    INSERT INTO requirements (name, type, notes)
+    VALUES ('Algorithms and Complexity - Required Courses', 'emphasis', 'Required courses for Algorithms and Complexity emphasis')
+    RETURNING id
+), algo_emphasis AS (
+    SELECT id FROM emphasis_areas WHERE name = 'Algorithms and Complexity'
+)
+INSERT INTO requirement_courses (requirement_id, course_id)
+SELECT algo_req_required.id, c.id
+FROM algo_req_required, courses c
+WHERE c.code IN ('CSCI 162', 'CSCI 164');
+
+INSERT INTO emphasis_requirements (emphasis_id, requirement_id)
+SELECT e.id, r.id
+FROM emphasis_areas e, requirements r
+WHERE e.name = 'Algorithms and Complexity'
+  AND r.name = 'Algorithms and Complexity - Required Courses';
+
+-- Electives Group 1 (choose 2)
+WITH algo_req_g1 AS (
+    INSERT INTO requirements (name, type, notes)
+    VALUES ('Algorithms and Complexity - Electives Group 1', 'emphasis', 'Choose two courses from this list')
+    RETURNING id
+), algo_cf1 AS (
+    INSERT INTO requirement_choose_from (requirement_id, count)
+    SELECT id, 2 FROM algo_req_g1
+    RETURNING id
+), algo_emphasis2 AS (
+    SELECT id FROM emphasis_areas WHERE name = 'Algorithms and Complexity'
+)
+INSERT INTO requirement_choose_options (requirement_choose_from_id, course_id)
+SELECT algo_cf1.id, c.id
+FROM algo_cf1, courses c
+WHERE c.code IN ('CSCI 146', 'CSCI 147', 'CSCI 165', 'CSCI 181', 'MATH 101', 'MATH 175', 'MATH 176', 'MATH 177', 'MATH 178');
+
+INSERT INTO emphasis_requirements (emphasis_id, requirement_id)
+SELECT e.id, r.id
+FROM emphasis_areas e, requirements r
+WHERE e.name = 'Algorithms and Complexity'
+  AND r.name = 'Algorithms and Complexity - Electives Group 1';
+
+-- Additional Emphasis Course (choose 1)
+WITH algo_req_add AS (
+    INSERT INTO requirements (name, type, notes)
+    VALUES ('Algorithms and Complexity - Additional Course', 'emphasis', 'Choose one more course from approved list')
+    RETURNING id
+), algo_cf2 AS (
+    INSERT INTO requirement_choose_from (requirement_id, count)
+    SELECT id, 1 FROM algo_req_add
+    RETURNING id
+), algo_emphasis3 AS (
+    SELECT id FROM emphasis_areas WHERE name = 'Algorithms and Complexity'
+)
+INSERT INTO requirement_choose_options (requirement_choose_from_id, course_id)
+SELECT algo_cf2.id, c.id
+FROM algo_cf2, courses c
+WHERE c.code IN ('CSCI 146', 'CSCI 147', 'CSCI 165', 'CSCI 181', 'MATH 101', 'MATH 175', 'MATH 176', 'MATH 177', 'MATH 178');
+
+INSERT INTO emphasis_requirements (emphasis_id, requirement_id)
+SELECT e.id, r.id
+FROM emphasis_areas e, requirements r
+WHERE e.name = 'Algorithms and Complexity'
+  AND r.name = 'Algorithms and Complexity - Additional Course';
+
+-- ========================= Data Science Emphasis =====================
+-- Required courses
+WITH ds_req_required AS (
+    INSERT INTO requirements (name, type, notes)
+    VALUES ('Data Science - Required Courses', 'emphasis', 'Required courses for Data Science emphasis')
+    RETURNING id
+), ds_emphasis AS (
+    SELECT id FROM emphasis_areas WHERE name = 'Data Science'
+)
+INSERT INTO requirement_courses (requirement_id, course_id)
+SELECT ds_req_required.id, c.id
+FROM ds_req_required, courses c
+WHERE c.code IN ('CSCI 183', 'CSCI 184', 'CSCI 185');
+
+INSERT INTO emphasis_requirements (emphasis_id, requirement_id)
+SELECT e.id, r.id
+FROM emphasis_areas e, requirements r
+WHERE e.name = 'Data Science'
+  AND r.name = 'Data Science - Required Courses';
+
+-- Electives (choose 2)
+WITH ds_req_el AS (
+    INSERT INTO requirements (name, type, notes)
+    VALUES ('Data Science - Electives', 'emphasis', 'Choose two electives for Data Science emphasis')
+    RETURNING id
+), ds_cf AS (
+    INSERT INTO requirement_choose_from (requirement_id, count)
+    SELECT id, 2 FROM ds_req_el
+    RETURNING id
+), ds_emphasis2 AS (
+    SELECT id FROM emphasis_areas WHERE name = 'Data Science'
+)
+INSERT INTO requirement_choose_options (requirement_choose_from_id, course_id)
+SELECT ds_cf.id, c.id
+FROM ds_cf, courses c
+WHERE c.code IN ('CSCI 127', 'CSCI 146', 'CSCI 147', 'CSCI 164', 'CSCI 166', 'MATH 123', 'CSEN 166');
+
+INSERT INTO emphasis_requirements (emphasis_id, requirement_id)
+SELECT e.id, r.id
+FROM emphasis_areas e, requirements r
+WHERE e.name = 'Data Science'
+  AND r.name = 'Data Science - Electives';
+
+-- =========================== Security Emphasis =======================
+-- Required courses
+WITH sec_req_required AS (
+    INSERT INTO requirements (name, type, notes)
+    VALUES ('Security - Required Courses', 'emphasis', 'Required courses for Security emphasis')
+    RETURNING id
+), sec_emphasis AS (
+    SELECT id FROM emphasis_areas WHERE name = 'Security'
+)
+INSERT INTO requirement_courses (requirement_id, course_id)
+SELECT sec_req_required.id, c.id
+FROM sec_req_required, courses c
+WHERE c.code IN ('MATH 178', 'CSCI 180', 'CSCI 181');
+
+INSERT INTO emphasis_requirements (emphasis_id, requirement_id)
+SELECT e.id, r.id
+FROM emphasis_areas e, requirements r
+WHERE e.name = 'Security'
+  AND r.name = 'Security - Required Courses';
+
+-- Electives (choose 2)
+WITH sec_req_el AS (
+    INSERT INTO requirements (name, type, notes)
+    VALUES ('Security - Electives', 'emphasis', 'Choose two electives for Security emphasis')
+    RETURNING id
+), sec_cf AS (
+    INSERT INTO requirement_choose_from (requirement_id, count)
+    SELECT id, 2 FROM sec_req_el
+    RETURNING id
+), sec_emphasis2 AS (
+    SELECT id FROM emphasis_areas WHERE name = 'Security'
+)
+INSERT INTO requirement_choose_options (requirement_choose_from_id, course_id)
+SELECT sec_cf.id, c.id
+FROM sec_cf, courses c
+WHERE c.code IN ('MATH 175', 'CSEN 152', 'CSEN 161', 'CSEN 146');
+
+INSERT INTO emphasis_requirements (emphasis_id, requirement_id)
+SELECT e.id, r.id
+FROM emphasis_areas e, requirements r
+WHERE e.name = 'Security'
+  AND r.name = 'Security - Electives';
+
+-- ============================ Software Emphasis ======================
+-- Required courses
+WITH sw_req_required AS (
+    INSERT INTO requirements (name, type, notes)
+    VALUES ('Software - Required Courses', 'emphasis', 'Required courses for Software emphasis')
+    RETURNING id
+), sw_emphasis AS (
+    SELECT id FROM emphasis_areas WHERE name = 'Software'
+)
+INSERT INTO requirement_courses (requirement_id, course_id)
+SELECT sw_req_required.id, c.id
+FROM sw_req_required, courses c
+WHERE c.code IN ('CSCI 169', 'CSCI 187', 'CSEN 146');
+
+INSERT INTO emphasis_requirements (emphasis_id, requirement_id)
+SELECT e.id, r.id
+FROM emphasis_areas e, requirements r
+WHERE e.name = 'Software'
+  AND r.name = 'Software - Required Courses';
+
+-- Elective Group 1 (choose 1)
+WITH sw_req_g1 AS (
+    INSERT INTO requirements (name, type, notes)
+    VALUES ('Software - Elective Group 1', 'emphasis', 'Choose one elective from list')
+    RETURNING id
+), sw_cf1 AS (
+    INSERT INTO requirement_choose_from (requirement_id, count)
+    SELECT id, 1 FROM sw_req_g1
+    RETURNING id
+), sw_emphasis2 AS (
+    SELECT id FROM emphasis_areas WHERE name = 'Software'
+)
+INSERT INTO requirement_choose_options (requirement_choose_from_id, course_id)
+SELECT sw_cf1.id, c.id
+FROM sw_cf1, courses c
+WHERE c.code IN ('CSCI 183', 'CSCI 180', 'CSCI 168');
+
+INSERT INTO emphasis_requirements (emphasis_id, requirement_id)
+SELECT e.id, r.id
+FROM emphasis_areas e, requirements r
+WHERE e.name = 'Software'
+  AND r.name = 'Software - Elective Group 1';
+
+-- Elective Group 2 (choose 1)
+WITH sw_req_g2 AS (
+    INSERT INTO requirements (name, type, notes)
+    VALUES ('Software - Elective Group 2', 'emphasis', 'Choose one additional elective')
+    RETURNING id
+), sw_cf2 AS (
+    INSERT INTO requirement_choose_from (requirement_id, count)
+    SELECT id, 1 FROM sw_req_g2
+    RETURNING id
+), sw_emphasis3 AS (
+    SELECT id FROM emphasis_areas WHERE name = 'Software'
+)
+INSERT INTO requirement_choose_options (requirement_choose_from_id, course_id)
+SELECT sw_cf2.id, c.id
+FROM sw_cf2, courses c
+WHERE c.code IN ('CSCI 183', 'CSCI 180', 'CSCI 168', 'CSEN 161', 'CSEN 178');
+
+INSERT INTO emphasis_requirements (emphasis_id, requirement_id)
+SELECT e.id, r.id
+FROM emphasis_areas e, requirements r
+WHERE e.name = 'Software'
+  AND r.name = 'Software - Elective Group 2';
+
+-- ============================ Open Emphasis ==========================
+-- Open Emphasis Requirements (choose 5, advisor approved)
+WITH open_req AS (
+    INSERT INTO requirements (name, type, notes)
+    VALUES ('Open Emphasis - Approved Courses', 'emphasis', 'Open emphasis approved courses list; three of five must be CSCI or MATH')
+    RETURNING id
+), open_cf AS (
+    INSERT INTO requirement_choose_from (requirement_id, count)
+    SELECT id, 5 FROM open_req
+    RETURNING id
+), open_emphasis AS (
+    SELECT id FROM emphasis_areas WHERE name = 'Open Emphasis'
+)
+-- No predefined options for open emphasis; advisor approval needed
+
+INSERT INTO emphasis_requirements (emphasis_id, requirement_id)
+SELECT e.id, r.id
+FROM emphasis_areas e, requirements r
+WHERE e.name = 'Open Emphasis'
+  AND r.name = 'Open Emphasis - Approved Courses'; 

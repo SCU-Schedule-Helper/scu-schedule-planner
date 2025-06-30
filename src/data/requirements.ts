@@ -204,7 +204,7 @@ export const UniversityCoreRequirements: RequirementGroup[] = [
         coursesRequired: [],
         chooseFrom: {
             count: 1,
-            options: ["Diversity Course"]
+            options: ["DIV 1"]
         }
     },
     {
@@ -213,7 +213,7 @@ export const UniversityCoreRequirements: RequirementGroup[] = [
         coursesRequired: [],
         chooseFrom: {
             count: 1,
-            options: ["Ethics Course"]
+            options: ["ETH 1"]
         }
     },
     {
@@ -222,7 +222,7 @@ export const UniversityCoreRequirements: RequirementGroup[] = [
         coursesRequired: [],
         chooseFrom: {
             count: 1,
-            options: ["ELSJ Course"]
+            options: ["ELSJ 1"]
         }
     },
     {
@@ -231,7 +231,7 @@ export const UniversityCoreRequirements: RequirementGroup[] = [
         coursesRequired: [],
         chooseFrom: {
             count: 1,
-            options: ["Social Science Course"]
+            options: ["SOC 1"]
         }
     },
     {
@@ -240,7 +240,7 @@ export const UniversityCoreRequirements: RequirementGroup[] = [
         coursesRequired: [],
         chooseFrom: {
             count: 1,
-            options: ["Civic Engagement Course"]
+            options: ["CIV 1"]
         }
     },
     {
@@ -258,7 +258,7 @@ export const UniversityCoreRequirements: RequirementGroup[] = [
         coursesRequired: [],
         chooseFrom: {
             count: 1,
-            options: ["ARTS 1", "ARTS 2", "ARTS 3"]
+            options: ["ARTS 1"]
         }
     },
     {
@@ -267,7 +267,7 @@ export const UniversityCoreRequirements: RequirementGroup[] = [
         coursesRequired: [],
         chooseFrom: {
             count: 1,
-            options: ["NATSCI 1", "NATSCI 2", "NATSCI 3"]
+            options: ["NATSCI 1"]
         }
     },
     {
@@ -276,7 +276,7 @@ export const UniversityCoreRequirements: RequirementGroup[] = [
         coursesRequired: [],
         chooseFrom: {
             count: 1,
-            options: ["SCIT 1", "SCIT 2", "SCIT 3"]
+            options: ["SCIT 1"]
         }
     },
     {
@@ -285,7 +285,7 @@ export const UniversityCoreRequirements: RequirementGroup[] = [
         coursesRequired: [],
         chooseFrom: {
             count: 1,
-            options: ["ADVWR 1", "ADVWR 2", "ADVWR 3"]
+            options: ["ADVWR 1"]
         }
     },
     {
@@ -294,7 +294,7 @@ export const UniversityCoreRequirements: RequirementGroup[] = [
         coursesRequired: [],
         chooseFrom: {
             count: 1,
-            options: ["MATH 11", "MATH 12"]
+            options: ["MATH 11"]
         }
     }
 ]; 

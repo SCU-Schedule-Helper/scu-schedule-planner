@@ -7,11 +7,12 @@ export async function GET() {
     try {
         const supabase = await createSupabaseServer();
 
-        // Get major requirements
+        // Include both "major" and "core" groups so that shared core requirements
+        // such as Mathematics Core appear alongside explicit major groups.
         const { data: requirements, error } = await supabase
             .from('requirements')
             .select('*')
-            .eq('type', 'major');
+            .in('type', ['major', 'core']);
 
         if (error) {
             console.error('Error fetching major requirements:', error);

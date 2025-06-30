@@ -81,15 +81,22 @@ export async function POST(request: Request) {
             completed_courses: plan.completedCourses || []
         };
 
-        // Insert the plan into Supabase
+        // Build insert object, omit emphasis_id if not a valid uuid
+        const insertPayload: Record<string, unknown> = {
+            name: plan.name,
+            user_id: plan.userId,
+            metadata: metadata as Json,
+        };
+
+        const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+        if (plan.emphasisId && uuidRegex.test(plan.emphasisId)) {
+            insertPayload["emphasis_id"] = plan.emphasisId;
+        }
+
         const { data, error } = await supabase
             .from('plans')
-            .insert({
-                name: plan.name,
-                user_id: plan.userId,
-                emphasis_id: plan.emphasisId,
-                metadata: metadata as Json
-            })
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            .insert(insertPayload as any)
             .select()
             .single();
 

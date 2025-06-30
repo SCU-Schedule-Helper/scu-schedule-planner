@@ -1,13 +1,15 @@
-import "./globals.css";
+import type React from "react";
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
+import { GeistSans } from "geist/font/sans";
+import { GeistMono } from "geist/font/mono";
+import "./globals.css";
+import { ThemeProvider } from "@/components/theme-provider";
+import { Toaster } from "@/components/ui/toaster";
 import Providers from "./providers";
 
-const inter = Inter({ subsets: ["latin"] });
-
 export const metadata: Metadata = {
-  title: "SCU Degree Planner",
-  description: "Plan your academic journey at Santa Clara University",
+  title: "SCU Schedule Planner",
+  description: "Santa Clara University Course Planning Tool",
 };
 
 export default function RootLayout({
@@ -16,9 +18,23 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en">
-      <body className={inter.className}>
-        <Providers>{children}</Providers>
+    <html
+      lang="en"
+      className={`${GeistSans.variable} ${GeistMono.variable}`}
+      suppressHydrationWarning
+    >
+      <body className="min-h-screen bg-background font-sans antialiased">
+        <Providers>
+          <ThemeProvider
+            attribute="class"
+            defaultTheme="light"
+            enableSystem
+            disableTransitionOnChange
+          >
+            {children}
+            <Toaster />
+          </ThemeProvider>
+        </Providers>
       </body>
     </html>
   );
