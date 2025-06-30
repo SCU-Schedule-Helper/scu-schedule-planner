@@ -86,6 +86,31 @@ SELECT c1.id, c2.id
 FROM courses c1, courses c2
 WHERE c1.code = 'CSEN 21' AND c2.code = 'ELEN 21';
 
+INSERT INTO cross_listed_courses (course_id, cross_listed_course_id)
+SELECT c1.id, c2.id
+FROM courses c1, courses c2
+WHERE c1.code = 'CSEN 19' AND c2.code = 'MATH 51';
+
+INSERT INTO cross_listed_courses (course_id, cross_listed_course_id)
+SELECT c1.id, c2.id
+FROM courses c1, courses c2
+WHERE c1.code = 'CSEN 10' AND c2.code = 'CSCI 10';
+
+INSERT INTO cross_listed_courses (course_id, cross_listed_course_id)
+SELECT c1.id, c2.id
+FROM courses c1, courses c2
+WHERE c1.code = 'CSEN 12' AND c2.code = 'CSCI 61';
+
+INSERT INTO cross_listed_courses (course_id, cross_listed_course_id)
+SELECT c1.id, c2.id
+FROM courses c1, courses c2
+WHERE c1.code = 'CSEN 79' AND c2.code = 'CSCI 62';
+
+INSERT INTO cross_listed_courses (course_id, cross_listed_course_id)
+SELECT c1.id, c2.id
+FROM courses c1, courses c2
+WHERE c1.code = 'CSEN 179' AND c2.code = 'CSCI 163';
+
 -- Add prerequisites for courses
 -- MATH 12 requires MATH 11
 WITH prereq AS (
@@ -964,4 +989,303 @@ INSERT INTO emphasis_requirements (emphasis_id, requirement_id)
 SELECT e.id, r.id
 FROM emphasis_areas e, requirements r
 WHERE e.name = 'Open Emphasis'
-  AND r.name = 'Open Emphasis - Approved Courses'; 
+  AND r.name = 'Open Emphasis - Approved Courses';
+
+-- CSCI 127 requires CSCI 10
+WITH prereq_csci_127 AS (
+    INSERT INTO prerequisites (course_id, prerequisite_type, min_grade)
+    SELECT id, 'required', 'C-'
+    FROM courses
+    WHERE code = 'CSCI 127'
+    RETURNING id
+)
+INSERT INTO prerequisite_courses (prerequisite_id, prerequisite_course_id)
+SELECT prereq_csci_127.id, courses.id
+FROM prereq_csci_127, courses
+WHERE courses.code = 'CSCI 10';
+
+-- CSCI 146 requires CSCI 10, MATH 14, and MATH 53
+WITH prereq_csci_146 AS (
+    INSERT INTO prerequisites (course_id, prerequisite_type, min_grade)
+    SELECT id, 'required', 'C-'
+    FROM courses
+    WHERE code = 'CSCI 146'
+    RETURNING id
+)
+INSERT INTO prerequisite_courses (prerequisite_id, prerequisite_course_id)
+SELECT prereq_csci_146.id, c.id
+FROM prereq_csci_146, courses c
+WHERE c.code IN ('CSCI 10', 'MATH 14', 'MATH 53');
+
+-- CSCI 147 requires MATH 122 and CSCI 146
+WITH prereq_csci_147 AS (
+    INSERT INTO prerequisites (course_id, prerequisite_type, min_grade)
+    SELECT id, 'required', 'C-'
+    FROM courses
+    WHERE code = 'CSCI 147'
+    RETURNING id
+)
+INSERT INTO prerequisite_courses (prerequisite_id, prerequisite_course_id)
+SELECT prereq_csci_147.id, c.id
+FROM prereq_csci_147, courses c
+WHERE c.code IN ('MATH 122', 'CSCI 146');
+
+-- CSCI 162 requires MATH 51
+WITH prereq_csci_162 AS (
+    INSERT INTO prerequisites (course_id, prerequisite_type, min_grade)
+    SELECT id, 'required', 'C-'
+    FROM courses
+    WHERE code = 'CSCI 162'
+    RETURNING id
+)
+INSERT INTO prerequisite_courses (prerequisite_id, prerequisite_course_id)
+SELECT prereq_csci_162.id, courses.id
+FROM prereq_csci_162, courses
+WHERE courses.code = 'MATH 51';
+
+-- CSCI 163 requires MATH 51 and (CSCI 61 or CSEN 79)
+-- Required: MATH 51
+WITH prereq_csci_163_req AS (
+    INSERT INTO prerequisites (course_id, prerequisite_type, min_grade)
+    SELECT id, 'required', 'C-'
+    FROM courses
+    WHERE code = 'CSCI 163'
+    RETURNING id
+)
+INSERT INTO prerequisite_courses (prerequisite_id, prerequisite_course_id)
+SELECT prereq_csci_163_req.id, courses.id
+FROM prereq_csci_163_req, courses
+WHERE courses.code = 'MATH 51';
+-- OR group: CSCI 61 or CSEN 79
+WITH prereq_csci_163_or AS (
+    INSERT INTO prerequisites (course_id, prerequisite_type, min_grade)
+    SELECT id, 'or', 'C-'
+    FROM courses
+    WHERE code = 'CSCI 163'
+    RETURNING id
+)
+INSERT INTO prerequisite_courses (prerequisite_id, prerequisite_course_id)
+SELECT prereq_csci_163_or.id, c.id
+FROM prereq_csci_163_or, courses c
+WHERE c.code IN ('CSCI 61', 'CSEN 79');
+
+-- CSCI 164 requires (CSCI 163 or CSEN 179)
+WITH prereq_csci_164_or AS (
+    INSERT INTO prerequisites (course_id, prerequisite_type, min_grade)
+    SELECT id, 'or', 'C-'
+    FROM courses
+    WHERE code = 'CSCI 164'
+    RETURNING id
+)
+INSERT INTO prerequisite_courses (prerequisite_id, prerequisite_course_id)
+SELECT prereq_csci_164_or.id, c.id
+FROM prereq_csci_164_or, courses c
+WHERE c.code IN ('CSCI 163', 'CSEN 179');
+
+-- CSCI 165 requires MATH 51 and CSCI 10
+WITH prereq_csci_165 AS (
+    INSERT INTO prerequisites (course_id, prerequisite_type, min_grade)
+    SELECT id, 'required', 'C-'
+    FROM courses
+    WHERE code = 'CSCI 165'
+    RETURNING id
+)
+INSERT INTO prerequisite_courses (prerequisite_id, prerequisite_course_id)
+SELECT prereq_csci_165.id, c.id
+FROM prereq_csci_165, courses c
+WHERE c.code IN ('MATH 51', 'CSCI 10');
+
+-- CSCI 166 requires CSCI 10 and MATH 53
+WITH prereq_csci_166 AS (
+    INSERT INTO prerequisites (course_id, prerequisite_type, min_grade)
+    SELECT id, 'required', 'C-'
+    FROM courses
+    WHERE code = 'CSCI 166'
+    RETURNING id
+)
+INSERT INTO prerequisite_courses (prerequisite_id, prerequisite_course_id)
+SELECT prereq_csci_166.id, c.id
+FROM prereq_csci_166, courses c
+WHERE c.code IN ('CSCI 10', 'MATH 53');
+
+-- CSCI 168 requires MATH 13 and (CSCI 62 or CSEN 79)
+-- Required: MATH 13
+WITH prereq_csci_168_req AS (
+    INSERT INTO prerequisites (course_id, prerequisite_type, min_grade)
+    SELECT id, 'required', 'C-'
+    FROM courses
+    WHERE code = 'CSCI 168'
+    RETURNING id
+)
+INSERT INTO prerequisite_courses (prerequisite_id, prerequisite_course_id)
+SELECT prereq_csci_168_req.id, courses.id
+FROM prereq_csci_168_req, courses
+WHERE courses.code = 'MATH 13';
+-- OR group
+WITH prereq_csci_168_or AS (
+    INSERT INTO prerequisites (course_id, prerequisite_type, min_grade)
+    SELECT id, 'or', 'C-'
+    FROM courses
+    WHERE code = 'CSCI 168'
+    RETURNING id
+)
+INSERT INTO prerequisite_courses (prerequisite_id, prerequisite_course_id)
+SELECT prereq_csci_168_or.id, c.id
+FROM prereq_csci_168_or, courses c
+WHERE c.code IN ('CSCI 62', 'CSEN 79');
+
+-- CSCI 169 requires MATH 51 and (CSCI 62 or CSEN 79)
+-- Required: MATH 51
+WITH prereq_csci_169_req AS (
+    INSERT INTO prerequisites (course_id, prerequisite_type, min_grade)
+    SELECT id, 'required', 'C-'
+    FROM courses
+    WHERE code = 'CSCI 169'
+    RETURNING id
+)
+INSERT INTO prerequisite_courses (prerequisite_id, prerequisite_course_id)
+SELECT prereq_csci_169_req.id, courses.id
+FROM prereq_csci_169_req, courses
+WHERE courses.code = 'MATH 51';
+-- OR group
+WITH prereq_csci_169_or AS (
+    INSERT INTO prerequisites (course_id, prerequisite_type, min_grade)
+    SELECT id, 'or', 'C-'
+    FROM courses
+    WHERE code = 'CSCI 169'
+    RETURNING id
+)
+INSERT INTO prerequisite_courses (prerequisite_id, prerequisite_course_id)
+SELECT prereq_csci_169_or.id, c.id
+FROM prereq_csci_169_or, courses c
+WHERE c.code IN ('CSCI 62', 'CSEN 79');
+
+-- CSCI 180 requires CSEN 20 and (CSCI 62 or CSEN 79)
+-- Required: CSEN 20
+WITH prereq_csci_180_req AS (
+    INSERT INTO prerequisites (course_id, prerequisite_type, min_grade)
+    SELECT id, 'required', 'C-'
+    FROM courses
+    WHERE code = 'CSCI 180'
+    RETURNING id
+)
+INSERT INTO prerequisite_courses (prerequisite_id, prerequisite_course_id)
+SELECT prereq_csci_180_req.id, courses.id
+FROM prereq_csci_180_req, courses
+WHERE courses.code = 'CSEN 20';
+-- OR group
+WITH prereq_csci_180_or AS (
+    INSERT INTO prerequisites (course_id, prerequisite_type, min_grade)
+    SELECT id, 'or', 'C-'
+    FROM courses
+    WHERE code = 'CSCI 180'
+    RETURNING id
+)
+INSERT INTO prerequisite_courses (prerequisite_id, prerequisite_course_id)
+SELECT prereq_csci_180_or.id, c.id
+FROM prereq_csci_180_or, courses c
+WHERE c.code IN ('CSCI 62', 'CSEN 79');
+
+-- CSCI 181 requires MATH 178 and (CSCI 62 or CSEN 79)
+-- Required: MATH 178
+WITH prereq_csci_181_req AS (
+    INSERT INTO prerequisites (course_id, prerequisite_type, min_grade)
+    SELECT id, 'required', 'C-'
+    FROM courses
+    WHERE code = 'CSCI 181'
+    RETURNING id
+)
+INSERT INTO prerequisite_courses (prerequisite_id, prerequisite_course_id)
+SELECT prereq_csci_181_req.id, courses.id
+FROM prereq_csci_181_req, courses
+WHERE courses.code = 'MATH 178';
+-- OR group
+WITH prereq_csci_181_or AS (
+    INSERT INTO prerequisites (course_id, prerequisite_type, min_grade)
+    SELECT id, 'or', 'C-'
+    FROM courses
+    WHERE code = 'CSCI 181'
+    RETURNING id
+)
+INSERT INTO prerequisite_courses (prerequisite_id, prerequisite_course_id)
+SELECT prereq_csci_181_or.id, c.id
+FROM prereq_csci_181_or, courses c
+WHERE c.code IN ('CSCI 62', 'CSEN 79');
+
+-- CSCI 183 requires MATH 53, MATH 122 and (CSCI 62 or CSEN 79)
+-- Required: MATH 53, MATH 122
+WITH prereq_csci_183_req AS (
+    INSERT INTO prerequisites (course_id, prerequisite_type, min_grade)
+    SELECT id, 'required', 'C-'
+    FROM courses
+    WHERE code = 'CSCI 183'
+    RETURNING id
+)
+INSERT INTO prerequisite_courses (prerequisite_id, prerequisite_course_id)
+SELECT prereq_csci_183_req.id, c.id
+FROM prereq_csci_183_req, courses c
+WHERE c.code IN ('MATH 53', 'MATH 122');
+-- OR group
+WITH prereq_csci_183_or AS (
+    INSERT INTO prerequisites (course_id, prerequisite_type, min_grade)
+    SELECT id, 'or', 'C-'
+    FROM courses
+    WHERE code = 'CSCI 183'
+    RETURNING id
+)
+INSERT INTO prerequisite_courses (prerequisite_id, prerequisite_course_id)
+SELECT prereq_csci_183_or.id, c.id
+FROM prereq_csci_183_or, courses c
+WHERE c.code IN ('CSCI 62', 'CSEN 79');
+
+-- CSCI 184 requires CSCI 183
+WITH prereq_csci_184 AS (
+    INSERT INTO prerequisites (course_id, prerequisite_type, min_grade)
+    SELECT id, 'required', 'C-'
+    FROM courses
+    WHERE code = 'CSCI 184'
+    RETURNING id
+)
+INSERT INTO prerequisite_courses (prerequisite_id, prerequisite_course_id)
+SELECT prereq_csci_184.id, courses.id
+FROM prereq_csci_184, courses
+WHERE courses.code = 'CSCI 183';
+
+-- CSCI 185 requires MATH 53, MATH 122 and (CSCI 62 or CSEN 79)
+-- Required: MATH 53, MATH 122
+WITH prereq_csci_185_req AS (
+    INSERT INTO prerequisites (course_id, prerequisite_type, min_grade)
+    SELECT id, 'required', 'C-'
+    FROM courses
+    WHERE code = 'CSCI 185'
+    RETURNING id
+)
+INSERT INTO prerequisite_courses (prerequisite_id, prerequisite_course_id)
+SELECT prereq_csci_185_req.id, c.id
+FROM prereq_csci_185_req, courses c
+WHERE c.code IN ('MATH 53', 'MATH 122');
+-- OR group
+WITH prereq_csci_185_or AS (
+    INSERT INTO prerequisites (course_id, prerequisite_type, min_grade)
+    SELECT id, 'or', 'C-'
+    FROM courses
+    WHERE code = 'CSCI 185'
+    RETURNING id
+)
+INSERT INTO prerequisite_courses (prerequisite_id, prerequisite_course_id)
+SELECT prereq_csci_185_or.id, c.id
+FROM prereq_csci_185_or, courses c
+WHERE c.code IN ('CSCI 62', 'CSEN 79');
+
+-- CSCI 187 requires (CSCI 62 or CSEN 79)
+WITH prereq_csci_187_or AS (
+    INSERT INTO prerequisites (course_id, prerequisite_type, min_grade)
+    SELECT id, 'or', 'C-'
+    FROM courses
+    WHERE code = 'CSCI 187'
+    RETURNING id
+)
+INSERT INTO prerequisite_courses (prerequisite_id, prerequisite_course_id)
+SELECT prereq_csci_187_or.id, c.id
+FROM prereq_csci_187_or, courses c
+WHERE c.code IN ('CSCI 62', 'CSEN 79'); 
