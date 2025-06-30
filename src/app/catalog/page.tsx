@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { SidebarNav } from "@/components/sidebar-nav";
 import { HeaderBar } from "@/components/header-bar";
 import { Input } from "@/components/ui/input";
@@ -29,11 +29,15 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useCoursesQuery } from "@/hooks/api/useCoursesQuery";
-import { useAddPlannedCourseMutation } from "@/hooks/api/usePlanQuery";
+import {
+  useAddPlannedCourseMutation,
+  useUpdatePlanMutation,
+} from "@/hooks/api/usePlanQuery";
 import { usePlannerStore } from "@/hooks/usePlannerStore";
-import type { Course } from "@/lib/types";
-import { Search, Filter, Plus, BookOpen } from "lucide-react";
+import type { Course, CoursePrerequisite } from "@/lib/types";
+import { Search, Filter, Plus, BookOpen, X } from "lucide-react";
 import { toast } from "sonner";
+import PrerequisiteGraph from "@/components/CourseCatalog/PrerequisiteGraph";
 
 export default function CatalogPage() {
   const [searchQuery, setSearchQuery] = useState("");
@@ -57,6 +61,7 @@ export default function CatalogPage() {
     : localPlans[0];
 
   const addPlannedCourseMutation = useAddPlannedCourseMutation();
+  const updatePlanMutation = useUpdatePlanMutation();
 
   // Gather codes already planned (from local store for immediate reactivity)
   const plannedCourseCodes = new Set<string>();
@@ -125,6 +130,31 @@ export default function CatalogPage() {
       matchesStatus
     );
   });
+
+  const prereqLabels = useMemo<{ labels: string[] }>(() => {
+    const prereqs = selectedCourse?.prerequisites;
+    if (!prereqs || prereqs.length === 0) return { labels: [] };
+
+    // Build alias -> group mapping from crossListedAs in full catalog
+    const aliasToGroup: Record<string, string[]> = {};
+    courses.forEach((c) => {
+      if (c.crossListedAs && c.crossListedAs.length) {
+        const grp = [c.code!, ...c.crossListedAs];
+        grp.forEach((alias) => (aliasToGroup[alias] = grp));
+      }
+    });
+
+    const labelSet = new Set<string>();
+
+    prereqs.forEach((g: CoursePrerequisite) => {
+      g.courses.forEach((code: string) => {
+        const groupArr = aliasToGroup[code] ?? [code];
+        labelSet.add(groupArr.join("/"));
+      });
+    });
+
+    return { labels: Array.from(labelSet) };
+  }, [courses, selectedCourse]);
 
   const subjects = Array.from(new Set(courses.map((c) => c.subject)));
   const levels = Array.from(
@@ -365,19 +395,16 @@ export default function CatalogPage() {
                     {(selectedCourse.prerequisites?.length ?? 0) > 0 && (
                       <div>
                         <h5 className="font-medium mb-2">Prerequisites</h5>
-                        <div className="flex flex-wrap gap-1">
-                          {selectedCourse.prerequisites?.map((prereq, idx) => {
-                            const label =
-                              typeof prereq === "string"
-                                ? prereq
-                                : prereq.courses.join("/");
-                            return (
-                              <Badge key={idx} variant="outline">
-                                {label}
-                              </Badge>
-                            );
-                          })}
+                        <div className="flex flex-wrap gap-1 mb-4">
+                          {prereqLabels.labels.map((label: string) => (
+                            <Badge key={label} variant="outline">
+                              {label}
+                            </Badge>
+                          ))}
                         </div>
+                        <PrerequisiteGraph
+                          courseCode={selectedCourse.code ?? ""}
+                        />
                       </div>
                     )}
 

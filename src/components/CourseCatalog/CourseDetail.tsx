@@ -1,4 +1,4 @@
-import { useCourseQuery } from "@/hooks/api/useCoursesQuery";
+import { useCourseQuery, useCoursesQuery } from "@/hooks/api/useCoursesQuery";
 import { useAddPlannedCourseMutation } from "@/hooks/api/usePlanQuery";
 import { usePlannerStore } from "@/hooks/usePlannerStore";
 import PrerequisiteGraph from "@/components/CourseCatalog/PrerequisiteGraph";
@@ -12,6 +12,7 @@ interface CourseDetailProps {
 const CourseDetail: React.FC<CourseDetailProps> = ({ courseCode, onClose }) => {
   const { currentPlanId, plans } = usePlannerStore();
   const { data: course, isLoading } = useCourseQuery(courseCode);
+  const { data: catalog = [] } = useCoursesQuery();
   const addPlannedMutation = useAddPlannedCourseMutation();
 
   const currentPlan = currentPlanId
@@ -83,13 +84,43 @@ const CourseDetail: React.FC<CourseDetailProps> = ({ courseCode, onClose }) => {
         <div className="mb-4">
           <h4 className="font-semibold mb-1">Prerequisites</h4>
           <ul className="list-disc list-inside text-gray-700">
-            {course.prerequisites.map((prereq, idx) => (
-              <li key={idx}>
-                {prereq.type === "or" ? "One of: " : ""}
-                {prereq.courses.join(", ")}
-                {prereq.grade && ` (minimum grade: ${prereq.grade})`}
-              </li>
-            ))}
+            {course.prerequisites.map((prereq, idx) => {
+              const courseCodes = prereq.courses ?? [];
+
+              // build alias -> group mapping using catalog crossListedAs
+              const aliasToGroup: Record<string, string[]> = {};
+              catalog.forEach((c) => {
+                if (c.crossListedAs && c.crossListedAs.length > 0) {
+                  const group = [c.code!, ...c.crossListedAs];
+                  group.forEach((alias) => (aliasToGroup[alias] = group));
+                }
+              });
+
+              // helper to choose canonical alias (prefer CSCI)
+              const chooseCanonical = (aliases: string[]): string => {
+                const csci = aliases.find((a) => a.startsWith("CSCI"));
+                return csci ?? aliases[0];
+              };
+
+              const seen = new Set<string>();
+              const parts: string[] = [];
+              courseCodes.forEach((code: string) => {
+                const group = aliasToGroup[code] ?? [code];
+                const canonical = chooseCanonical(group);
+                if (!seen.has(canonical)) {
+                  parts.push(group.join("/"));
+                  seen.add(canonical);
+                }
+              });
+
+              return (
+                <li key={idx}>
+                  {prereq.type === "or" ? "One of: " : "Required: "}
+                  {parts.join(", ")}
+                  {prereq.grade && ` (minimum grade: ${prereq.grade})`}
+                </li>
+              );
+            })}
           </ul>
 
           <div className="mt-4">

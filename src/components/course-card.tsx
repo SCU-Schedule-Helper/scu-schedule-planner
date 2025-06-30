@@ -5,14 +5,34 @@ import { Badge } from "@/components/ui/badge";
 import type { PlannedCourse } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { CheckCircle, Clock, BookOpen } from "lucide-react";
+import type { ValidationReport } from "@/lib/validation/types";
 
 interface CourseCardProps {
   course: PlannedCourse;
+  report?: ValidationReport | null;
   isDragging?: boolean;
   className?: string;
 }
 
-export function CourseCard({ course, isDragging, className }: CourseCardProps) {
+function getValidationSeverity(
+  report: ValidationReport | null | undefined,
+  code?: string
+): "error" | "warning" | undefined {
+  if (!report || !code) return undefined;
+  const cr = report.courseReports[code];
+  if (!cr) return undefined;
+  const hasError = cr.messages.some((m) => m.level === "error");
+  if (hasError) return "error";
+  const hasWarn = cr.messages.some((m) => m.level === "warning");
+  return hasWarn ? "warning" : undefined;
+}
+
+export function CourseCard({
+  course,
+  report,
+  isDragging,
+  className,
+}: CourseCardProps) {
   const statusIcons = {
     completed: CheckCircle,
     "in-progress": Clock,
@@ -31,12 +51,19 @@ export function CourseCard({ course, isDragging, className }: CourseCardProps) {
   const planStatus = course.planStatus ?? "planned";
   const StatusIcon = statusIcons[planStatus];
 
+  const severity = getValidationSeverity(
+    report,
+    course.courseCode ?? course.code
+  );
+
   return (
     <Card
       className={cn(
         "cursor-move transition-all duration-200 hover:shadow-md",
         isDragging && "opacity-50 rotate-2",
         course.planStatus === "completed" && "bg-green-50",
+        severity === "error" && "border-2 border-red-500",
+        severity === "warning" && "border-2 border-yellow-400",
         className
       )}
       draggable

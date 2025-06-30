@@ -10,9 +10,11 @@ import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useCoursesQuery } from "@/hooks/api/useCoursesQuery";
 import { useMemo } from "react";
+import type { ValidationReport } from "@/lib/validation/types";
 
 interface QuarterColumnProps {
   quarter: Quarter;
+  report?: ValidationReport | null;
   onDropCourse?: (course: PlannedCourse, quarterId: string) => void;
   onAddCourse?: (quarterId: string) => void;
   className?: string;
@@ -20,6 +22,7 @@ interface QuarterColumnProps {
 
 export function QuarterColumn({
   quarter,
+  report,
   onDropCourse,
   onAddCourse,
   className,
@@ -55,6 +58,11 @@ export function QuarterColumn({
     0
   );
 
+  // determine if over-unit warning exists from validation report
+  const overUnit = report?.messages.some(
+    (m) => m.code === "OVER_UNIT_LOAD" && m.context?.quarter === quarter.name
+  );
+
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
   };
@@ -71,7 +79,12 @@ export function QuarterColumn({
   return (
     <Card className={cn("h-fit min-h-[400px]", className)}>
       <CardHeader className="pb-3">
-        <CardTitle className="text-lg font-semibold text-scu-cardinal flex items-center justify-between">
+        <CardTitle
+          className={cn(
+            "text-lg font-semibold flex items-center justify-between",
+            overUnit ? "text-red-600" : "text-scu-cardinal"
+          )}
+        >
           <span>{quarter.name}</span>
           <span className="text-sm font-normal text-muted-foreground">
             {totalUnits} units
@@ -87,7 +100,7 @@ export function QuarterColumn({
           const key =
             course.id ??
             `${course.courseCode ?? course.code ?? "unknown"}-${index}`;
-          return <CourseCard key={key} course={course} />;
+          return <CourseCard key={key} course={course} report={report} />;
         })}
         {enrichedCourses.length === 0 && (
           <div className="flex items-center justify-center h-32 border-2 border-dashed border-muted-foreground/25 rounded-lg">
