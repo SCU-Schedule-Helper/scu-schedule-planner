@@ -14,10 +14,98 @@ import Link from "next/link";
 import { usePlansQuery } from "@/hooks/api/usePlanQuery";
 import { usePlannerStore } from "@/hooks/usePlannerStore";
 import { Plus } from "lucide-react";
+import { useState } from "react";
+import {
+  Dialog,
+  DialogContent,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { OnboardingWizard } from "@/components/onboarding-wizard";
+import {
+  useCreatePlanMutation,
+  ApiUserPlanSchema,
+} from "@/hooks/api/usePlanQuery";
+import { z } from "zod";
+import type { Course, UserPlan } from "@/lib/types";
+import { VisuallyHidden } from "@radix-ui/react-visually-hidden";
+
+// Types for onboarding data
+type OnboardingData = {
+  major: { id: string; name: string; code: string } | null;
+  emphasisAreas: {
+    id: string;
+    name: string;
+    majorId: string;
+    description?: string;
+  }[];
+  completedCourses: Course[];
+};
 
 export default function PlansIndexPage() {
-  const { userId } = usePlannerStore();
+  const { userId, setUserId, addPlan, setCurrentPlan } = usePlannerStore();
   const { data: plans = [], isLoading } = usePlansQuery(userId ?? "");
+  const createPlanMutation = useCreatePlanMutation();
+
+  const [showWizard, setShowWizard] = useState(false);
+
+  const handleComplete = (data: OnboardingData) => {
+    // Ensure user id
+    let uid = userId;
+    if (!uid) {
+      uid = crypto.randomUUID();
+      setUserId(uid);
+    }
+
+    // Store selections
+    if (data.major?.id) {
+      usePlannerStore.getState().setMajor(data.major.id);
+    }
+    if (data.emphasisAreas?.[0]?.id) {
+      usePlannerStore.getState().setEmphasis(data.emphasisAreas[0].id);
+    }
+
+    type ApiUserPlan = z.infer<typeof ApiUserPlanSchema>;
+    const completedCoursesForPlan = data.completedCourses
+      .filter((c): c is Course & { code: string } => typeof c.code === "string")
+      .map((c) => ({
+        courseCode: c.code,
+        quarter: "",
+        status: "completed" as const,
+      }));
+
+    const newPlan: Omit<ApiUserPlan, "id"> = {
+      userId: uid,
+      name: `Plan for ${data.major?.name ?? "My Major"}`,
+      majorId: data.major?.id ?? "",
+      emphasisId: data.emphasisAreas[0]?.id ?? undefined,
+      catalogYearId: "current",
+      maxUnitsPerQuarter: 20,
+      includeSummer: false,
+      quarters: [],
+      completedCourses: completedCoursesForPlan,
+    };
+
+    createPlanMutation.mutate(newPlan, {
+      onSuccess: (plan) => {
+        const planForStore: UserPlan = {
+          id: plan.id,
+          name: plan.name,
+          majorId: plan.majorId,
+          emphasisId: plan.emphasisId,
+          catalogYearId: plan.catalogYearId,
+          quarters: plan.quarters,
+          completedCourses: plan.completedCourses,
+          maxUnitsPerQuarter: plan.maxUnitsPerQuarter,
+          includeSummer: plan.includeSummer,
+        };
+
+        addPlan(planForStore);
+        if (plan.id) setCurrentPlan(plan.id);
+        setShowWizard(false);
+      },
+    });
+  };
 
   return (
     <div className="flex">
@@ -27,12 +115,24 @@ export default function PlansIndexPage() {
 
         <main className="p-6 space-y-6">
           <div className="flex justify-end">
-            {/* TODO: wire to create flow */}
-            <Button asChild>
-              <Link href="/onboarding">
-                <Plus className="h-4 w-4 mr-2" /> New Plan
-              </Link>
-            </Button>
+            <Dialog open={showWizard} onOpenChange={setShowWizard}>
+              <DialogTrigger asChild>
+                <Button>
+                  <Plus className="h-4 w-4 mr-2" /> New Plan
+                </Button>
+              </DialogTrigger>
+              <VisuallyHidden>
+                <DialogTitle />
+              </VisuallyHidden>
+
+              <DialogContent
+                className="p-0 bg-transparent border-none max-w-4xl w-full"
+                aria-describedby="onboarding-wizard-description"
+              >
+                {/* Wizard card already has its own card + background, so transparent dialog content */}
+                <OnboardingWizard onComplete={handleComplete} />
+              </DialogContent>
+            </Dialog>
           </div>
 
           {isLoading ? (
