@@ -2,6 +2,7 @@ import { useCourseQuery } from "@/hooks/api/useCoursesQuery";
 import { useAddPlannedCourseMutation } from "@/hooks/api/usePlanQuery";
 import { usePlannerStore } from "@/hooks/usePlannerStore";
 import PrerequisiteGraph from "@/components/CourseCatalog/PrerequisiteGraph";
+import { Button } from "@/components/ui/button";
 
 interface CourseDetailProps {
   courseCode: string;
@@ -47,12 +48,9 @@ const CourseDetail: React.FC<CourseDetailProps> = ({ courseCode, onClose }) => {
     return (
       <div className="p-4 border rounded-lg">
         <p className="text-red-500">Course not found</p>
-        <button
-          onClick={onClose}
-          className="mt-4 px-3 py-1 bg-gray-200 rounded"
-        >
+        <Button onClick={onClose} variant="outline" className="mt-4">
           Back to list
-        </button>
+        </Button>
       </div>
     );
   }
@@ -69,9 +67,9 @@ const CourseDetail: React.FC<CourseDetailProps> = ({ courseCode, onClose }) => {
           </div>
         </div>
 
-        <button onClick={onClose} className="px-3 py-1 bg-gray-200 rounded">
+        <Button onClick={onClose} variant="outline" className="mt-4">
           Back to list
-        </button>
+        </Button>
       </div>
 
       {course.description && (
@@ -125,14 +123,16 @@ const CourseDetail: React.FC<CourseDetailProps> = ({ courseCode, onClose }) => {
           <h4 className="font-semibold mb-2">Add to Plan</h4>
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
             {currentPlan.quarters.slice(0, 8).map((quarter) => (
-              <button
+              <Button
                 key={quarter.id}
                 onClick={() => handleAddToPlan(quarter.id)}
                 disabled={addPlannedMutation.isPending}
-                className="px-2 py-1 text-sm border rounded hover:bg-blue-50"
+                variant="outline"
+                size="sm"
+                className="px-2 py-1 text-sm"
               >
                 {quarter.name}
-              </button>
+              </Button>
             ))}
           </div>
           {currentPlan.quarters.length > 8 && (

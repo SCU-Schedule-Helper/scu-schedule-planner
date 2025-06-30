@@ -10,6 +10,7 @@ import CourseList from "@/components/CourseCatalog/CourseList";
 import CourseDetail from "@/components/CourseCatalog/CourseDetail";
 import CourseFilters from "@/components/CourseCatalog/CourseFilters";
 import { CourseFilter } from "@/lib/types";
+import { Input } from "@/components/ui/input";
 
 const CourseCatalog = () => {
   const [searchTerm, setSearchTerm] = useState("");
@@ -49,8 +50,8 @@ const CourseCatalog = () => {
     searchTerm.length >= 3
       ? searchResults
       : Object.values(filters).some((val) => val !== undefined)
-      ? filteredCourses
-      : allCourses;
+        ? filteredCourses
+        : allCourses;
 
   const isLoading = isLoadingSearch || isLoadingFiltered || isLoadingAll;
 
@@ -61,12 +62,11 @@ const CourseCatalog = () => {
           <h2 className="text-xl font-bold mb-4">Course Catalog</h2>
 
           <div className="mb-4">
-            <input
+            <Input
               type="text"
               value={searchTerm}
               onChange={handleSearch}
               placeholder="Search courses..."
-              className="w-full p-2 border rounded"
             />
           </div>
 

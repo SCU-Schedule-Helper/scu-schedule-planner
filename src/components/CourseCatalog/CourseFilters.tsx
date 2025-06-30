@@ -1,6 +1,14 @@
 import { useMemo } from "react";
 import { useCoursesQuery } from "@/hooks/api/useCoursesQuery";
 import { CourseFilter } from "@/lib/types";
+import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
+} from "@/components/ui/select";
 
 interface CourseFiltersProps {
   filters: CourseFilter;
@@ -27,24 +35,21 @@ const CourseFilters: React.FC<CourseFiltersProps> = ({
     return Array.from(deptSet).sort();
   }, [courses]);
 
-  const handleDepartmentChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const value = e.target.value;
+  const handleDepartmentChange = (value: string) => {
     onFilterChange({
       ...filters,
       department: value || undefined,
     });
   };
 
-  const handleDivisionChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const value = e.target.value;
+  const handleDivisionChange = (value: string) => {
     onFilterChange({
       ...filters,
       isUpperDivision: value === "" ? undefined : value === "true",
     });
   };
 
-  const handleQuarterChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const value = e.target.value;
+  const handleQuarterChange = (value: string) => {
     onFilterChange({
       ...filters,
       quarter: value || undefined,
@@ -65,59 +70,72 @@ const CourseFilters: React.FC<CourseFiltersProps> = ({
 
       <div className="mb-3">
         <label className="block text-sm mb-1">Department</label>
-        <select
+        <Select
           value={filters.department || ""}
-          onChange={handleDepartmentChange}
-          className="w-full p-2 border rounded"
+          onValueChange={handleDepartmentChange}
         >
-          <option value="">All Departments</option>
-          {departments.map((dept) => (
-            <option key={dept} value={dept}>
-              {dept}
-            </option>
-          ))}
-        </select>
+          <SelectTrigger>
+            <SelectValue placeholder="All Departments" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="">All Departments</SelectItem>
+            {departments.map((dept) => (
+              <SelectItem key={dept} value={dept}>
+                {dept}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
       <div className="mb-3">
         <label className="block text-sm mb-1">Course Level</label>
-        <select
+        <Select
           value={
             filters.isUpperDivision === undefined
               ? ""
               : String(filters.isUpperDivision)
           }
-          onChange={handleDivisionChange}
-          className="w-full p-2 border rounded"
+          onValueChange={handleDivisionChange}
         >
-          <option value="">All Levels</option>
-          <option value="false">Lower Division</option>
-          <option value="true">Upper Division</option>
-        </select>
+          <SelectTrigger>
+            <SelectValue placeholder="All Levels" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="">All Levels</SelectItem>
+            <SelectItem value="false">Lower Division</SelectItem>
+            <SelectItem value="true">Upper Division</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
 
       <div className="mb-3">
         <label className="block text-sm mb-1">Quarter Offered</label>
-        <select
+        <Select
           value={filters.quarter || ""}
-          onChange={handleQuarterChange}
-          className="w-full p-2 border rounded"
+          onValueChange={handleQuarterChange}
         >
-          <option value="">Any Quarter</option>
-          <option value="Fall">Fall</option>
-          <option value="Winter">Winter</option>
-          <option value="Spring">Spring</option>
-          <option value="Summer">Summer</option>
-        </select>
+          <SelectTrigger>
+            <SelectValue placeholder="Any Quarter" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="">Any Quarter</SelectItem>
+            <SelectItem value="Fall">Fall</SelectItem>
+            <SelectItem value="Winter">Winter</SelectItem>
+            <SelectItem value="Spring">Spring</SelectItem>
+            <SelectItem value="Summer">Summer</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
 
       {Object.values(filters).some((val) => val !== undefined) && (
-        <button
+        <Button
           onClick={handleClearFilters}
-          className="text-sm text-blue-500 hover:text-blue-700"
+          variant="link"
+          className="text-blue-500 hover:text-blue-700 p-0 h-auto text-sm"
         >
           Clear all filters
-        </button>
+        </Button>
       )}
     </div>
   );

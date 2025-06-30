@@ -4,6 +4,8 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import useSupabaseBrowser from "@/lib/supabase/client";
 import { usePlannerStore } from "@/hooks/usePlannerStore";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 
 export default function Login() {
   const [email, setEmail] = useState("");
@@ -87,12 +89,11 @@ export default function Login() {
             >
               Email
             </label>
-            <input
+            <Input
               id="email"
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full rounded-md border border-gray-300 p-2"
               required
             />
           </div>
@@ -104,34 +105,30 @@ export default function Login() {
             >
               Password
             </label>
-            <input
+            <Input
               id="password"
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full rounded-md border border-gray-300 p-2"
               required
             />
           </div>
 
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full rounded-md bg-blue-500 py-2 text-white hover:bg-blue-600 disabled:bg-blue-300"
-          >
+          <Button type="submit" disabled={loading} className="w-full">
             {loading ? "Loading..." : mode === "login" ? "Sign In" : "Sign Up"}
-          </button>
+          </Button>
         </form>
 
         <div className="mt-4 text-center">
-          <button
+          <Button
+            variant="link"
             onClick={() => setMode(mode === "login" ? "signup" : "login")}
-            className="text-sm text-blue-500 hover:underline"
+            className="text-sm text-blue-500 hover:underline p-0 h-auto"
           >
             {mode === "login"
               ? "Need an account? Sign up"
               : "Already have an account? Sign in"}
-          </button>
+          </Button>
         </div>
       </div>
     </div>

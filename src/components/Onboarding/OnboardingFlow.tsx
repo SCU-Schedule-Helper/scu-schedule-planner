@@ -8,6 +8,16 @@ import {
 } from "@/hooks/api/useOnboardingQuery";
 import { useCreatePlanMutation } from "@/hooks/api/usePlanQuery";
 import useSupabaseBrowser from "@/lib/supabase/client";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
+} from "@/components/ui/select";
 
 const OnboardingFlow = () => {
   const [step, setStep] = useState(1);
@@ -47,15 +57,25 @@ const OnboardingFlow = () => {
 
   const createPlanMutation = useCreatePlanMutation();
 
-  const handleInputChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
-  ) => {
-    const { name, value, type } = e.target;
-
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
     setFormData((prev) => ({
       ...prev,
-      [name]:
-        type === "checkbox" ? (e.target as HTMLInputElement).checked : value,
+      [name]: name === "maxUnitsPerQuarter" ? Number(value) : value,
+    }));
+  };
+
+  const handleSelectChange = (name: string) => (value: string) => {
+    setFormData((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
+  };
+
+  const handleCheckboxChange = (checked: boolean) => {
+    setFormData((prev) => ({
+      ...prev,
+      includeSummer: checked,
     }));
   };
 
@@ -149,20 +169,21 @@ const OnboardingFlow = () => {
           {isLoadingMajors ? (
             <div>Loading majors...</div>
           ) : (
-            <select
-              name="majorId"
+            <Select
               value={formData.majorId}
-              onChange={handleInputChange}
-              className="w-full p-2 border rounded"
-              required
+              onValueChange={handleSelectChange("majorId")}
             >
-              <option value="">Select Major</option>
-              {majors?.map((major) => (
-                <option key={major.id} value={major.id}>
-                  {major.name}
-                </option>
-              ))}
-            </select>
+              <SelectTrigger>
+                <SelectValue placeholder="Select Major" />
+              </SelectTrigger>
+              <SelectContent>
+                {majors?.map((major) => (
+                  <SelectItem key={major.id} value={major.id}>
+                    {major.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           )}
         </div>
       )}
@@ -179,19 +200,22 @@ const OnboardingFlow = () => {
           {isLoadingEmphasis ? (
             <div>Loading emphasis areas...</div>
           ) : (
-            <select
-              name="emphasisId"
+            <Select
               value={formData.emphasisId}
-              onChange={handleInputChange}
-              className="w-full p-2 border rounded"
+              onValueChange={handleSelectChange("emphasisId")}
             >
-              <option value="">No Emphasis / General</option>
-              {emphasisAreas?.map((emphasis) => (
-                <option key={emphasis.id} value={emphasis.id}>
-                  {emphasis.name}
-                </option>
-              ))}
-            </select>
+              <SelectTrigger>
+                <SelectValue placeholder="No Emphasis / General" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="">No Emphasis / General</SelectItem>
+                {emphasisAreas?.map((emphasis) => (
+                  <SelectItem key={emphasis.id} value={emphasis.id}>
+                    {emphasis.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           )}
         </div>
       )}
@@ -205,35 +229,31 @@ const OnboardingFlow = () => {
 
           <div className="mb-4">
             <label className="block mb-2">Plan Name</label>
-            <input
+            <Input
               type="text"
               name="planName"
               value={formData.planName}
               onChange={handleInputChange}
-              className="w-full p-2 border rounded"
             />
           </div>
 
           <div className="mb-4">
             <label className="block mb-2">Maximum Units per Quarter</label>
-            <input
+            <Input
               type="number"
               name="maxUnitsPerQuarter"
               value={formData.maxUnitsPerQuarter}
               onChange={handleInputChange}
               min={12}
               max={25}
-              className="w-full p-2 border rounded"
             />
           </div>
 
           <div className="mb-4">
             <label className="flex items-center">
-              <input
-                type="checkbox"
-                name="includeSummer"
+              <Checkbox
                 checked={formData.includeSummer}
-                onChange={handleInputChange}
+                onCheckedChange={handleCheckboxChange}
                 className="mr-2"
               />
               Include summer quarters in planning
@@ -244,27 +264,23 @@ const OnboardingFlow = () => {
 
       <div className="flex justify-between mt-8">
         {step > 1 && (
-          <button
-            onClick={handleBack}
-            className="px-4 py-2 bg-gray-200 rounded"
-          >
+          <Button onClick={handleBack} variant="outline">
             Back
-          </button>
+          </Button>
         )}
 
-        <button
+        <Button
           onClick={handleNext}
           disabled={
             (step === 1 && !formData.majorId) || createPlanMutation.isPending
           }
-          className="px-4 py-2 bg-blue-500 text-white rounded disabled:bg-blue-300"
         >
           {step === 3
             ? createPlanMutation.isPending
               ? "Creating..."
               : "Finish"
             : "Next"}
-        </button>
+        </Button>
       </div>
     </div>
   );

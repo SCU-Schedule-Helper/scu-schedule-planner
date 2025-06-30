@@ -5,6 +5,7 @@ import {
   useAddCompletedCourseMutation,
   useRemoveCompletedCourseMutation,
 } from "@/hooks/api/usePlanQuery";
+import { Checkbox } from "@/components/ui/checkbox";
 
 interface RequirementChecklistProps {
   requirements: RequirementGroup[];
@@ -142,8 +143,8 @@ const RequirementChecklist: React.FC<RequirementChecklistProps> = ({
             status === "completed"
               ? "border-green-500 bg-green-50"
               : status === "planned"
-              ? "border-blue-500 bg-blue-50"
-              : "border-gray-200"
+                ? "border-blue-500 bg-blue-50"
+                : "border-gray-200"
           }
         `}
       >
@@ -152,14 +153,10 @@ const RequirementChecklist: React.FC<RequirementChecklistProps> = ({
           onClick={() => toggleCourse(courseCode)}
         >
           <div className="flex items-center gap-2">
-            <input
-              type="checkbox"
+            <Checkbox
               checked={status === "completed"}
-              onChange={(e) => {
-                e.stopPropagation();
-                handleToggleCompletion(courseCode);
-              }}
-              className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+              onCheckedChange={() => handleToggleCompletion(courseCode)}
+              className="h-4 w-4"
             />
             <span
               className={`font-medium ${
