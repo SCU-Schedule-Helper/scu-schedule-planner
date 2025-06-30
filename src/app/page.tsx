@@ -20,6 +20,7 @@ import { GraduationCap, BookOpen, Target } from "lucide-react";
 import { AddCourseDialog } from "@/components/add-course-dialog";
 import type { Quarter } from "@/lib/types";
 import { useState } from "react";
+import { usePlanValidation } from "@/hooks/usePlanValidation";
 
 export default function DashboardPage() {
   const {
@@ -31,7 +32,15 @@ export default function DashboardPage() {
     plans: localPlans,
   } = usePlannerStore();
   const { data: plans } = usePlansQuery(userId ?? "");
-  const plan = plans?.[0];
+
+  // Prefer local (optimistically updated) plans from Zustand; fallback to server data
+  const storePlan = currentPlanId
+    ? localPlans.find((p) => p.id === currentPlanId)
+    : localPlans[0];
+
+  const serverPlan = plans?.[0];
+
+  const plan = storePlan ?? serverPlan;
   const quarters = plan?.quarters ?? [];
 
   const addPlannedCourseMutation = useAddPlannedCourseMutation();
@@ -40,6 +49,9 @@ export default function DashboardPage() {
   // dialog state for adding course
   const [dialogOpen, setDialogOpen] = useState(false);
   const [targetQuarterId, setTargetQuarterId] = useState<string | null>(null);
+
+  // Validation report for current plan (using store-backed plan for accurate optimistic updates)
+  const validationReport = usePlanValidation();
 
   const handleAddCourse = async (quarterId: string) => {
     if (!plan?.id) return;
@@ -143,6 +155,7 @@ export default function DashboardPage() {
                   <QuarterColumn
                     key={quarter.id}
                     quarter={quarter}
+                    report={validationReport}
                     onDropCourse={handleDropCourse}
                     onAddCourse={handleAddCourse}
                   />
