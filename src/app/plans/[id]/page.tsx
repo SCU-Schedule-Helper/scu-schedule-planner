@@ -45,7 +45,12 @@ export default function PlanDetailPage() {
   const { data: plan, isLoading } = usePlanQuery(planId);
 
   // Zustand store actions for optimistic updates
-  const { addPlannedCourse, movePlannedCourse } = usePlannerStore();
+  const {
+    addPlannedCourse,
+    movePlannedCourse,
+    updatePlan: updatePlanStore,
+    addPlan: addPlanToStore,
+  } = usePlannerStore();
 
   const [quarters, setQuarters] = useState<Quarter[]>(plan?.quarters ?? []);
   const [planName] = useState(plan?.name ?? "Plan");
@@ -68,8 +73,20 @@ export default function PlanDetailPage() {
   useEffect(() => {
     if (plan?.quarters) {
       setQuarters(plan.quarters);
+      // Ensure global store stays in sync with latest server data
+      const existingPlans = usePlannerStore.getState().plans;
+      const exists = existingPlans.some((p) => p.id === plan!.id);
+      if (!exists) {
+        addPlanToStore(plan as any); // cast since function expects UserPlan
+      } else {
+        updatePlanStore(plan!.id ?? "", {
+          name: plan!.name,
+          quarters: plan!.quarters,
+          includeSummer: plan!.includeSummer,
+        });
+      }
     }
-  }, [plan?.quarters]);
+  }, [plan]);
 
   const addQuarter = async (direction: "prev" | "next") => {
     if (!planId) return;
@@ -96,13 +113,20 @@ export default function PlanDetailPage() {
         ? [newQuarter, ...quarters]
         : [...quarters, newQuarter];
 
-    // Optimistic UI update
+    // Optimistic UI update (local state + global store)
     setQuarters(updatedQuarters);
+    updatePlanStore(planId, { quarters: updatedQuarters });
 
-    await updatePlanMutation.mutateAsync({
-      planId,
-      updates: { quarters: updatedQuarters },
-    });
+    try {
+      await updatePlanMutation.mutateAsync({
+        planId,
+        updates: { quarters: updatedQuarters },
+      });
+    } catch (error) {
+      // Revert optimistic updates on failure
+      setQuarters(quarters);
+      updatePlanStore(planId, { quarters });
+    }
   };
 
   const headerActions = (
@@ -272,11 +296,13 @@ export default function PlanDetailPage() {
                 onChangeIncludeSummer={async (value) => {
                   if (!planId) return;
 
-                  // optimistic? we can update plan state maybe later reload
+                  // Update both server and local store so dashboards stay in sync
                   await updatePlanMutation.mutateAsync({
                     planId,
                     updates: { includeSummer: value },
                   });
+
+                  updatePlanStore(planId, { includeSummer: value });
                 }}
               />
             </CardContent>
