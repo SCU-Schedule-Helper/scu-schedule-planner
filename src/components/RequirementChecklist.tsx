@@ -1,34 +1,45 @@
-import { RequirementGroup } from "@/data/requirements";
-import { Courses, hasPrerequisitesSatisfied } from "@/data/courses";
+import { useState } from "react";
+import { RequirementGroup } from "@/lib/types";
+import { usePlannerStore } from "@/hooks/usePlannerStore";
+import {
+  useAddCompletedCourseMutation,
+  useRemoveCompletedCourseMutation,
+} from "@/hooks/api/usePlanQuery";
 
 interface RequirementChecklistProps {
   requirements: RequirementGroup[];
-  completedCourses?: string[];
-  plannedCourses?: string[];
 }
 
 const RequirementChecklist: React.FC<RequirementChecklistProps> = ({
   requirements,
-  completedCourses = [],
-  plannedCourses = [],
 }) => {
-  const getRequirementStatus = (requirement: RequirementGroup) => {
-    const allCourses = [...completedCourses, ...plannedCourses];
+  const { addCompletedCourse, removeCompletedCourse, currentPlanId, plans } =
+    usePlannerStore();
 
-    // For required courses
-    const requiredCoursesComplete = requirement.coursesRequired.every(
-      (course) => allCourses.includes(course)
-    );
+  const addCompletedCourseMutation = useAddCompletedCourseMutation();
+  const removeCompletedCourseMutation = useRemoveCompletedCourseMutation();
 
-    // For choose from options
-    const chooseFromComplete = requirement.chooseFrom
-      ? requirement.chooseFrom.options.length === 0 || // Handle empty options array (Open Emphasis)
-        allCourses.filter((course) =>
-          requirement.chooseFrom!.options.includes(course)
-        ).length >= requirement.chooseFrom.count
-      : true;
+  const currentPlan = plans.find((p) => p.id === currentPlanId);
+  const completedCourses =
+    currentPlan?.completedCourses.map((c) => c.courseCode) || [];
 
-    return requiredCoursesComplete && chooseFromComplete;
+  const plannedCourses: string[] = [];
+  currentPlan?.quarters.forEach((q) => {
+    q.courses.forEach((c) => {
+      if (c.status === "planned") plannedCourses.push(c.courseCode);
+    });
+  });
+
+  const [expandedCourses, setExpandedCourses] = useState<
+    Record<string, boolean>
+  >({});
+
+  // Toggle expanded state for a course
+  const toggleCourse = (courseCode: string) => {
+    setExpandedCourses((prev) => ({
+      ...prev,
+      [courseCode]: !prev[courseCode],
+    }));
   };
 
   const getCourseStatus = (courseCode: string) => {
@@ -41,157 +52,150 @@ const RequirementChecklist: React.FC<RequirementChecklistProps> = ({
     return "not-started";
   };
 
-  const getPrerequisiteStatus = (courseCode: string) => {
-    return hasPrerequisitesSatisfied(courseCode, completedCourses);
-  };
-
-  const toggleCourseStatus = (
-    courseCode: string,
-    newStatus: "completed" | "planned" | "not-started"
-  ) => {
-    // Get the course row element
-    const courseRow = document.getElementById(`course-row-${courseCode}`);
-    if (!courseRow) return;
-
-    // Reset all status classes
-    courseRow.classList.remove("text-green-500", "text-blue-500");
-
-    // Add new status class
-    if (newStatus === "completed") {
-      courseRow.classList.add("text-green-500");
-    } else if (newStatus === "planned") {
-      courseRow.classList.add("text-blue-500");
-    }
-
-    // Update status indicator
-    const statusIndicator = document.getElementById(
-      `status-indicator-${courseCode}`
-    );
-    if (statusIndicator) {
-      statusIndicator.classList.remove(
-        "bg-green-500",
-        "bg-blue-500",
-        "bg-gray-300"
-      );
-      if (newStatus === "completed") {
-        statusIndicator.classList.add("bg-green-500");
-      } else if (newStatus === "planned") {
-        statusIndicator.classList.add("bg-blue-500");
-      } else {
-        statusIndicator.classList.add("bg-gray-300");
-      }
-    }
-
-    // Update buttons
-    const completedBtn = document.getElementById(`completed-${courseCode}`);
-    const plannedBtn = document.getElementById(`planned-${courseCode}`);
-
-    if (completedBtn) {
-      completedBtn.classList.remove("bg-green-500", "text-white");
-      completedBtn.classList.add("bg-gray-200", "text-gray-700");
-      if (newStatus === "completed") {
-        completedBtn.classList.remove("bg-gray-200", "text-gray-700");
-        completedBtn.classList.add("bg-green-500", "text-white");
-      }
-    }
-
-    if (plannedBtn) {
-      plannedBtn.classList.remove("bg-blue-500", "text-white");
-      plannedBtn.classList.add("bg-gray-200", "text-gray-700");
-      if (newStatus === "planned") {
-        plannedBtn.classList.remove("bg-gray-200", "text-gray-700");
-        plannedBtn.classList.add("bg-blue-500", "text-white");
-      }
-    }
-  };
-
-  const renderCourseWithPrereqs = (courseCode: string) => {
-    const course = Courses[courseCode];
+  const handleToggleCompletion = (courseCode: string) => {
     const status = getCourseStatus(courseCode);
-    const prereqsSatisfied = getPrerequisiteStatus(courseCode);
+
+    if (!currentPlanId) {
+      return;
+    }
+
+    if (status === "completed") {
+      // Optimistic update (local only; TODO: implement server removal)
+      removeCompletedCourse(courseCode);
+      removeCompletedCourseMutation.mutate({
+        planId: currentPlanId,
+        courseCode,
+      });
+    } else {
+      // Optimistic update
+      addCompletedCourse(courseCode);
+      addCompletedCourseMutation.mutate({ planId: currentPlanId, courseCode });
+    }
+  };
+
+  // Calculate progress for a requirement group
+  const calculateProgress = (requirement: RequirementGroup) => {
+    // For required courses
+    const requiredTotal = requirement.coursesRequired.length;
+    const requiredCompleted = requirement.coursesRequired.filter((course) =>
+      completedCourses.includes(course)
+    ).length;
+    const requiredPlanned = requirement.coursesRequired.filter((course) =>
+      plannedCourses.includes(course)
+    ).length;
+
+    // For choose from options
+    let chooseFromTotal = 0;
+    let chooseFromCompleted = 0;
+    let chooseFromPlanned = 0;
+
+    if (requirement.chooseFrom) {
+      chooseFromTotal = requirement.chooseFrom.count;
+
+      const completedChooseFrom = requirement.chooseFrom.options.filter(
+        (course) => completedCourses.includes(course)
+      );
+      chooseFromCompleted = Math.min(
+        chooseFromTotal,
+        completedChooseFrom.length
+      );
+
+      const plannedChooseFrom = requirement.chooseFrom.options.filter(
+        (course) => plannedCourses.includes(course)
+      );
+      chooseFromPlanned = Math.min(
+        chooseFromTotal - chooseFromCompleted,
+        plannedChooseFrom.length
+      );
+    }
+
+    const totalRequired = requiredTotal + chooseFromTotal;
+    const totalCompleted = requiredCompleted + chooseFromCompleted;
+    const totalPlanned = requiredPlanned + chooseFromPlanned;
+
+    return {
+      completed: totalCompleted,
+      planned: totalPlanned,
+      total: totalRequired,
+      percentageCompleted:
+        totalRequired > 0
+          ? Math.round((totalCompleted / totalRequired) * 100)
+          : 100,
+      percentagePlanned:
+        totalRequired > 0
+          ? Math.round((totalPlanned / totalRequired) * 100)
+          : 0,
+    };
+  };
+
+  const renderCourseItem = (courseCode: string) => {
+    const status = getCourseStatus(courseCode);
+    const isExpanded = !!expandedCourses[courseCode];
 
     return (
       <div
         key={courseCode}
-        id={`course-row-${courseCode}`}
         className={`
-          mb-2 p-2 rounded
+          mb-2 rounded-md border transition-all
           ${
             status === "completed"
-              ? "text-green-500"
+              ? "border-green-500 bg-green-50"
               : status === "planned"
-              ? "text-blue-500"
-              : ""
+              ? "border-blue-500 bg-blue-50"
+              : "border-gray-200"
           }
-          ${!prereqsSatisfied && status !== "completed" ? "bg-red-100/10" : ""}
         `}
       >
-        <div className="flex items-center gap-2">
-          <div
-            id={`status-indicator-${courseCode}`}
-            className={`w-2 h-2 rounded-full ${
-              status === "completed"
-                ? "bg-green-500"
-                : status === "planned"
-                ? "bg-blue-500"
-                : "bg-gray-300"
-            }`}
-          />
-          <span>{courseCode}</span>
-          {course?.title && (
-            <span className="text-sm text-gray-500">- {course.title}</span>
-          )}
-
-          <div className="ml-auto flex items-center gap-2">
-            <button
-              className={`px-2 py-1 text-xs rounded ${
-                status === "completed"
-                  ? "bg-green-500 text-white"
-                  : "bg-gray-200 text-gray-700"
+        <div
+          className="p-3 flex items-center justify-between cursor-pointer"
+          onClick={() => toggleCourse(courseCode)}
+        >
+          <div className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              checked={status === "completed"}
+              onChange={(e) => {
+                e.stopPropagation();
+                handleToggleCompletion(courseCode);
+              }}
+              className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+            />
+            <span
+              className={`font-medium ${
+                status === "completed" ? "line-through text-gray-500" : ""
               }`}
-              onClick={() =>
-                toggleCourseStatus(
-                  courseCode,
-                  status === "completed" ? "not-started" : "completed"
-                )
-              }
-              id={`completed-${courseCode}`}
             >
-              Completed
-            </button>
-            <button
-              className={`px-2 py-1 text-xs rounded ${
-                status === "planned"
-                  ? "bg-blue-500 text-white"
-                  : "bg-gray-200 text-gray-700"
-              }`}
-              onClick={() =>
-                toggleCourseStatus(
-                  courseCode,
-                  status === "planned" ? "not-started" : "planned"
-                )
-              }
-              id={`planned-${courseCode}`}
-            >
-              Planned
-            </button>
+              {courseCode}
+            </span>
+            {status === "planned" && (
+              <span className="text-xs px-2 py-0.5 bg-blue-100 text-blue-800 rounded-full">
+                Planned
+              </span>
+            )}
           </div>
+
+          <svg
+            className={`h-5 w-5 text-gray-400 transition-transform ${
+              isExpanded ? "transform rotate-180" : ""
+            }`}
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 20 20"
+            fill="currentColor"
+          >
+            <path
+              fillRule="evenodd"
+              d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"
+              clipRule="evenodd"
+            />
+          </svg>
         </div>
 
-        {course?.prerequisites && course.prerequisites.length > 0 && (
-          <div className="ml-4 mt-1 text-sm text-gray-500">
-            {course.prerequisites.map((prereq, idx) => (
-              <div key={idx}>
-                Prerequisites ({prereq.type}): {prereq.courses.join(", ")}
-                {prereq.grade && ` (min grade: ${prereq.grade})`}
-              </div>
-            ))}
-          </div>
-        )}
-
-        {!prereqsSatisfied && status !== "completed" && (
-          <div className="ml-4 mt-1 text-sm text-red-500">
-            ⚠️ Prerequisites not met
+        {isExpanded && (
+          <div className="px-3 pb-3 pt-0 border-t border-gray-100 mt-1">
+            <p className="text-sm text-gray-600">
+              Course details will appear here when connected to the course
+              catalog.
+            </p>
           </div>
         )}
       </div>
@@ -199,62 +203,71 @@ const RequirementChecklist: React.FC<RequirementChecklistProps> = ({
   };
 
   return (
-    <div className="max-w-4xl mx-auto p-6">
-      <h2 className="text-2xl font-bold mb-6">Requirements Checklist</h2>
+    <div className="space-y-6">
+      {requirements.map((requirement) => {
+        const progress = calculateProgress(requirement);
 
-      {requirements.map((requirement, index) => (
-        <div key={index} className="mb-6 p-4 border rounded-lg bg-white/5">
-          <div className="flex items-center gap-2 mb-2">
-            <div
-              className={`w-4 h-4 rounded-full ${
-                getRequirementStatus(requirement)
-                  ? "bg-green-500"
-                  : "bg-gray-300"
-              }`}
-            />
-            <h3 className="text-lg font-semibold">{requirement.name}</h3>
+        return (
+          <div
+            key={requirement.id || requirement.name}
+            className="border rounded-lg shadow-sm bg-white overflow-hidden"
+          >
+            <div className="p-4">
+              <div className="flex items-center justify-between mb-2">
+                <h3 className="text-lg font-semibold">{requirement.name}</h3>
+                <div className="text-sm font-medium">
+                  {progress.completed} of {progress.total} completed
+                </div>
+              </div>
+
+              {/* Progress bar */}
+              <div className="w-full bg-gray-200 rounded-full h-2.5 mb-4">
+                <div
+                  className="bg-green-500 h-2.5 rounded-full"
+                  style={{ width: `${progress.percentageCompleted}%` }}
+                ></div>
+              </div>
+
+              {/* Required Courses */}
+              {requirement.coursesRequired.length > 0 && (
+                <div className="mb-4">
+                  <h4 className="font-medium text-sm text-gray-500 mb-2">
+                    Required Courses:
+                  </h4>
+                  <div className="space-y-2">
+                    {requirement.coursesRequired.map(renderCourseItem)}
+                  </div>
+                </div>
+              )}
+
+              {/* Choose From Options */}
+              {requirement.chooseFrom && (
+                <div className="mb-4">
+                  <h4 className="font-medium text-sm text-gray-500 mb-2">
+                    Choose {requirement.chooseFrom.count} from:
+                  </h4>
+                  <div className="space-y-2">
+                    {requirement.chooseFrom.options.length > 0 ? (
+                      requirement.chooseFrom.options.map(renderCourseItem)
+                    ) : (
+                      <p className="text-sm italic text-gray-500 p-3 bg-gray-50 rounded-md">
+                        Courses must be approved by an advisor
+                      </p>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Notes */}
+              {requirement.notes && (
+                <div className="mt-3 text-sm text-gray-600 bg-gray-50 p-3 rounded-md">
+                  <p className="italic">{requirement.notes}</p>
+                </div>
+              )}
+            </div>
           </div>
-
-          {/* Required Courses */}
-          {requirement.coursesRequired.length > 0 && (
-            <div className="ml-6 mb-2">
-              <p className="font-medium mb-1">Required Courses:</p>
-              <div className="space-y-2">
-                {requirement.coursesRequired.map((course) =>
-                  renderCourseWithPrereqs(course)
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* Choose From Options */}
-          {requirement.chooseFrom && (
-            <div className="ml-6 mb-2">
-              <p className="font-medium mb-1">
-                Choose {requirement.chooseFrom.count} from:
-              </p>
-              <div className="space-y-2">
-                {requirement.chooseFrom.options.length > 0 ? (
-                  requirement.chooseFrom.options.map((course) =>
-                    renderCourseWithPrereqs(course)
-                  )
-                ) : (
-                  <p className="text-sm italic">
-                    Courses must be approved by an advisor
-                  </p>
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* Notes */}
-          {requirement.notes && (
-            <div className="ml-6 mt-2 text-sm text-gray-600">
-              <p className="italic">{requirement.notes}</p>
-            </div>
-          )}
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 };

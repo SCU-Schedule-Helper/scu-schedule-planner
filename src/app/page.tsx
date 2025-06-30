@@ -1,24 +1,17 @@
 "use client";
-import RequirementChecklist from "@/components/RequirementChecklist";
-import {
-  CSMajorRequirements,
-  UniversityCoreRequirements,
-  CSEmphasisRequirements,
-} from "@/data/requirements";
-import { useState } from "react";
+
+import { usePlannerStore } from "@/hooks/usePlannerStore";
+import OnboardingFlow from "@/components/Onboarding/OnboardingFlow";
+import CourseCatalog from "@/components/CourseCatalog/CourseCatalog";
+import RequirementsTab from "@/components/RequirementsTab";
 
 export default function Home() {
-  // Example completed/planned courses - in a real app this would come from state/database
-  const completedCourses = ["CSCI 10", "MATH 11", "MATH 12"];
-  const plannedCourses = ["CSCI 60", "CSCI 61", "MATH 13"];
+  const { isOnboardingComplete, activeTab, setActiveTab } = usePlannerStore();
 
-  // State for selected emphasis
-  const [selectedEmphasis, setSelectedEmphasis] = useState<string>(
-    "Algorithms and Complexity"
-  );
-
-  // Get the requirements for the selected emphasis
-  const emphasisRequirements = CSEmphasisRequirements[selectedEmphasis] || [];
+  // Show onboarding if not completed
+  if (!isOnboardingComplete) {
+    return <OnboardingFlow />;
+  }
 
   return (
     <div className="min-h-screen bg-background text-foreground">
@@ -26,59 +19,82 @@ export default function Home() {
         <h1 className="text-3xl font-bold text-center">
           SCU Computer Science Degree Planner
         </h1>
+        <nav className="flex justify-center mt-4">
+          <ul className="flex space-x-4">
+            <li>
+              <button
+                onClick={() => setActiveTab("catalog")}
+                className={`px-4 py-2 rounded ${
+                  activeTab === "catalog"
+                    ? "bg-blue-500 text-white"
+                    : "bg-gray-200"
+                }`}
+              >
+                Course Catalog
+              </button>
+            </li>
+            <li>
+              <button
+                onClick={() => setActiveTab("planner")}
+                className={`px-4 py-2 rounded ${
+                  activeTab === "planner"
+                    ? "bg-blue-500 text-white"
+                    : "bg-gray-200"
+                }`}
+              >
+                Quarter Planner
+              </button>
+            </li>
+            <li>
+              <button
+                onClick={() => setActiveTab("requirements")}
+                className={`px-4 py-2 rounded ${
+                  activeTab === "requirements"
+                    ? "bg-blue-500 text-white"
+                    : "bg-gray-200"
+                }`}
+              >
+                Requirements
+              </button>
+            </li>
+            <li>
+              <button
+                onClick={() => setActiveTab("dashboard")}
+                className={`px-4 py-2 rounded ${
+                  activeTab === "dashboard"
+                    ? "bg-blue-500 text-white"
+                    : "bg-gray-200"
+                }`}
+              >
+                Dashboard
+              </button>
+            </li>
+          </ul>
+        </nav>
       </header>
 
-      <main className="container mx-auto py-8">
-        <div className="space-y-12">
-          <section>
-            <h2 className="text-2xl font-bold mb-4">Major Requirements</h2>
-            <RequirementChecklist
-              requirements={CSMajorRequirements}
-              completedCourses={completedCourses}
-              plannedCourses={plannedCourses}
-            />
-          </section>
+      <main className="container mx-auto py-8 px-4">
+        {activeTab === "catalog" && <CourseCatalog />}
 
-          <section>
-            <h2 className="text-2xl font-bold mb-4">Emphasis Selection</h2>
-            <div className="mb-4">
-              <label
-                htmlFor="emphasis-select"
-                className="block text-sm font-medium mb-2"
-              >
-                Choose an emphasis:
-              </label>
-              <select
-                id="emphasis-select"
-                value={selectedEmphasis}
-                onChange={(e) => setSelectedEmphasis(e.target.value)}
-                className="w-full p-2 border rounded bg-background text-foreground"
-              >
-                {Object.keys(CSEmphasisRequirements).map((emphasis) => (
-                  <option key={emphasis} value={emphasis}>
-                    {emphasis}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <RequirementChecklist
-              requirements={emphasisRequirements}
-              completedCourses={completedCourses}
-              plannedCourses={plannedCourses}
-            />
-          </section>
+        {activeTab === "planner" && (
+          <div className="text-center py-12">
+            <h2 className="text-2xl font-bold mb-4">Quarter Planner</h2>
+            <p className="text-gray-500">
+              Quarter Planner component will be implemented here
+            </p>
+          </div>
+        )}
 
-          <section>
-            <h2 className="text-2xl font-bold mb-4">
-              University Core Requirements
-            </h2>
-            <RequirementChecklist
-              requirements={UniversityCoreRequirements}
-              completedCourses={completedCourses}
-              plannedCourses={plannedCourses}
-            />
-          </section>
-        </div>
+        {activeTab === "requirements" && <RequirementsTab />}
+
+        {activeTab === "dashboard" && (
+          <div className="text-center py-12">
+            <h2 className="text-2xl font-bold mb-4">Dashboard</h2>
+            <p className="text-gray-500">
+              Dashboard component will be implemented here
+            </p>
+          </div>
+        )}
       </main>
     </div>
   );

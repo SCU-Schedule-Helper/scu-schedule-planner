@@ -8,13 +8,13 @@
   - Parse course catalog and requirements from SCU Bulletin and checklist.
   - Extract:
     - Course code, title, units, description, prerequisites (including complex chains), corequisites, quarters offered, department, upper/lower division status.
-    - Requirement groupings (core, major, emphasis, university/college core), “choose X of Y” rules, minimum units, allowed substitutions, notes.
+    - Requirement groupings (core, major, emphasis, university/college core), "choose X of Y" rules, minimum units, allowed substitutions, notes.
 - **Edge Cases**:
   - Cross-listed courses (e.g., CSCI/CSEN).
-  - Prerequisites that are “one of” a set (e.g., “MATH 9 or Calculus Readiness Exam”).
+  - Prerequisites that are "one of" a set (e.g., "MATH 9 or Calculus Readiness Exam").
   - Co-requisites (must be taken together).
   - Courses not offered every quarter/year.
-  - Requirements that allow “any upper-division elective” or “advisor-approved course.”
+  - Requirements that allow "any upper-division elective" or "advisor-approved course."
   - Double-counting: courses that fulfill multiple requirements.
 
 ### 1.2. **Normalize to Structured Data**
@@ -47,7 +47,7 @@
 }
 ```
 
-- **“Choose X of Y” Example**:
+- **"Choose X of Y" Example**:
 
 ```json
 {
@@ -153,9 +153,8 @@ interface UserPlan {
 ### 4.1. **Onboarding**
 
 - **Step 1:** Select major and emphasis (if applicable).
-- **Step 2:** Choose catalog year (to handle bulletin changes).
-- **Step 3:** Optionally import transcript or manually mark completed courses.
-- **Step 4:** Set preferences (pace per quarter, max units, summer enrollment, etc.).
+- **Step 2:** Optionally import transcript or manually mark completed courses.
+- **Step 3:** Set preferences (pace per quarter, max units, summer enrollment, etc.).
 - **Edge Cases**:
   - User switches major/emphasis after planning—system must recalculate requirements and validate plan.
   - User imports incomplete transcript—system must prompt for missing data.
@@ -195,13 +194,12 @@ interface UserPlan {
   - Grouped by type (major, emphasis, university core, etc.).
   - For each requirement:
     - List required courses, status (planned/completed/missing).
-    - For “choose X of Y,” show progress (e.g., “1 of 2 selected”).
+    - For "choose X of Y," show progress (e.g., "1 of 2 selected").
     - Show double-counted courses with an asterisk or note.
   - Click to see which planned/taken courses fulfill each requirement.
 - **Edge Cases**:
   - Course fulfills multiple requirements—handle double-counting rules.
   - User satisfies a requirement with an advisor-approved substitution—allow manual override with note.
-  - Requirements that change based on catalog year.
 
 ### 4.5. **Prerequisite Graph**
 
@@ -219,11 +217,10 @@ interface UserPlan {
   - Progress bars for each requirement group.
   - Total units, upper-division units, GPA (if grades entered).
   - Estimated graduation quarter.
-  - List of unmet or at-risk requirements (e.g., “CSCI 161 not scheduled, required before senior year”).
+  - List of unmet or at-risk requirements (e.g., "CSCI 161 not scheduled, required before senior year").
   - Export plan as PDF or shareable link.
 - **Edge Cases**:
   - User plans a course sequence that delays graduation (e.g., missing a prerequisite for a spring-only course).
-  - User changes catalog year—dashboard recalculates requirements.
 
 ## 5. **Validation \& Logic**
 
@@ -231,17 +228,16 @@ interface UserPlan {
 
 - **On every change**:
   - Check all planned courses for prerequisite/corequisite satisfaction.
-  - Validate that each requirement (including “choose X of Y”) is satisfied by planned/completed courses.
+  - Validate that each requirement (including "choose X of Y") is satisfied by planned/completed courses.
   - Enforce max units per quarter (unless overridden).
-  - Warn if a course is scheduled in a quarter it’s not offered.
+  - Warn if a course is scheduled in a quarter it's not offered.
   - Detect and warn about scheduling conflicts, gaps in sequences, or missing requirements.
 
 ### 5.2. **Edge Case Handling**
 
 - **Double-counting**: Track which requirements each course fulfills; warn if double-counting is not allowed.
 - **Substitutions**: Allow user to manually mark a course as fulfilling a requirement with advisor note.
-- **Catalog changes**: Store catalog year with plan; if user changes year, recalculate requirements and highlight differences.
-- **Electives**: For “any upper-division elective,” allow user to select from eligible courses.
+- **Electives**: For "any upper-division elective," allow user to select from eligible courses.
 - **Transfer/AP credit**: Allow user to mark courses as satisfied via transfer/AP.
 
 ## 6. **Extensibility \& Modularity**
@@ -254,7 +250,7 @@ interface UserPlan {
 
 ### 6.2. **Customizable Logic**
 
-- Plugin system for custom requirement logic (e.g., “must take at least 3 courses from list A and 2 from list B”).
+- Plugin system for custom requirement logic (e.g., "must take at least 3 courses from list A and 2 from list B").
 - Configurable validation rules per major/catalog.
 
 ## 7. **User Experience (UX) Considerations**
@@ -264,7 +260,7 @@ interface UserPlan {
 - **Autosave** and persistent storage.
 - **Accessibility**: Keyboard navigation, ARIA labels.
 - **Tooltips** and contextual help.
-- **Warnings** and suggestions for common mistakes (e.g., “You have not scheduled CSCI 161, which is a prerequisite for several senior courses”).
+- **Warnings** and suggestions for common mistakes (e.g., "You have not scheduled CSCI 161, which is a prerequisite for several senior courses").
 - **Advisor mode**: Allow advisors to review and comment on plans.
 
 ## 8. **Testing \& Quality Assurance**
@@ -275,7 +271,7 @@ interface UserPlan {
 
 ## 9. **Example User Flow**
 
-1. **User logs in, selects Computer Science major (2024-25) and “Algorithms” emphasis.**
+1. **User logs in, selects Computer Science major (2024-25) and "Algorithms" emphasis.**
 2. **Imports transcript**: CSCI 10, MATH 11 marked as completed.
 3. **Planner auto-populates**: Shows which requirements are already satisfied.
 4. **User drags courses into future quarters**; system validates prerequisites and warns about scheduling conflicts.
