@@ -3,6 +3,10 @@ import { z } from 'zod';
 import { createSupabaseServer } from '@/lib/supabase/server';
 import { Json } from '@/lib/database.types';
 import { PlannedCourseSchema } from '@/lib/types';
+import { validatePlan } from '@/lib/validation/engine';
+import { Courses as CatalogCourses } from '@/data/courses';
+import { CSMajorRequirements, UniversityCoreRequirements } from '@/data/requirements';
+import type { UserPlan, Quarter as QuarterType, PlannedCourse as PlannedCourseType } from '@/lib/types';
 
 const AddPlannedCourseSchema = z.object({
     courseCode: z.string(),
@@ -70,6 +74,49 @@ export async function POST(
         }
 
         quarters[quarterIndex].courses.push(newPlannedCourse as PlanCourse);
+
+        // ------------------------------------------------------------------
+        // Validation check (reject if the resulting plan has fatal errors)
+        // ------------------------------------------------------------------
+
+        const allRequirements = [
+            ...CSMajorRequirements,
+            ...UniversityCoreRequirements,
+        ];
+
+        const syntheticPlan: UserPlan = {
+            id: planId,
+            name: plan.name,
+            majorId: "", // unknown in current schema
+            quarters: quarters as unknown as QuarterType[],
+            completedCourses: (metadata.completedCourses as PlannedCourseType[]) ?? [],
+            maxUnitsPerQuarter: (metadata.maxUnitsPerQuarter as number) ?? 20,
+            includeSummer: (metadata.includeSummer as boolean) ?? true,
+        };
+
+        const validation = validatePlan({
+            courses: CatalogCourses,
+            requirements: allRequirements,
+            plan: syntheticPlan,
+            settings: {
+                maxUnitsPerQuarter: syntheticPlan.maxUnitsPerQuarter,
+                includeSummer: syntheticPlan.includeSummer,
+            },
+        });
+
+        const fatalErrors = [
+            ...validation.messages.filter((m) => m.level === "error"),
+            ...Object.values(validation.courseReports).flatMap((cr) =>
+                cr.messages.filter((m) => m.level === "error")
+            ),
+        ];
+
+        if (fatalErrors.length > 0) {
+            return NextResponse.json(
+                { error: "Validation failed", report: validation },
+                { status: 400 }
+            );
+        }
 
         const newMetadata: Json = {
             ...metadata,

@@ -4,8 +4,20 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import type { PlannedCourse } from "@/lib/types";
 import { cn } from "@/lib/utils";
-import { CheckCircle, Clock, BookOpen } from "lucide-react";
+import {
+  CheckCircle,
+  Clock,
+  BookOpen,
+  AlertCircle,
+  AlertTriangle,
+} from "lucide-react";
 import type { ValidationReport } from "@/lib/validation/types";
+import {
+  TooltipProvider,
+  Tooltip,
+  TooltipTrigger,
+  TooltipContent,
+} from "@/components/ui/tooltip";
 
 interface CourseCardProps {
   course: PlannedCourse;
@@ -56,45 +68,83 @@ export function CourseCard({
     course.courseCode ?? course.code
   );
 
+  const validationMessages =
+    (course &&
+      report?.courseReports[course.courseCode ?? course.code ?? ""]
+        ?.messages) ??
+    [];
+
   return (
-    <Card
-      className={cn(
-        "cursor-move transition-all duration-200 hover:shadow-md",
-        isDragging && "opacity-50 rotate-2",
-        course.planStatus === "completed" && "bg-green-50",
-        severity === "error" && "border-2 border-red-500",
-        severity === "warning" && "border-2 border-yellow-400",
-        className
-      )}
-      draggable
-      onDragStart={(e) => {
-        e.dataTransfer.setData("text/plain", JSON.stringify(course));
-      }}
-    >
-      <CardContent className="p-3">
-        <div className="flex items-start justify-between mb-2">
-          <div className="flex-1">
-            <h4 className="font-semibold text-sm text-scu-cardinal">
-              {course.code ?? course.courseCode}
-            </h4>
-            <p className="text-xs text-muted-foreground line-clamp-2">
-              {course.title}
-            </p>
-          </div>
-          <Badge variant="secondary" className="ml-2 text-xs">
-            {course.units !== undefined ? `${course.units}u` : "—"}
-          </Badge>
-        </div>
-        <div className="flex items-center justify-between">
-          <Badge
-            variant="outline"
-            className={cn("text-xs", statusColors[planStatus])}
+    <TooltipProvider delayDuration={200}>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Card
+            className={cn(
+              "relative cursor-move transition-all duration-200 hover:shadow-md",
+              isDragging && "opacity-50 rotate-2",
+              course.planStatus === "completed" && "bg-green-50",
+              severity === "error" && "border-2 border-red-500",
+              severity === "warning" && "border-2 border-yellow-400",
+              className
+            )}
+            draggable
+            onDragStart={(e) => {
+              e.dataTransfer.setData("text/plain", JSON.stringify(course));
+            }}
           >
-            <StatusIcon className="w-3 h-3 mr-1" />
-            {planStatus.replace("-", " ")}
-          </Badge>
-        </div>
-      </CardContent>
-    </Card>
+            {/* Icon overlay */}
+            {severity && (
+              <div className="absolute top-1 right-1">
+                {severity === "error" ? (
+                  <AlertCircle className="w-4 h-4 text-red-600" />
+                ) : (
+                  <AlertTriangle className="w-4 h-4 text-yellow-500" />
+                )}
+              </div>
+            )}
+            <CardContent className="p-3">
+              <div className="flex items-start justify-between mb-2">
+                <div className="flex-1">
+                  <h4 className="font-semibold text-sm text-scu-cardinal">
+                    {course.code ?? course.courseCode}
+                  </h4>
+                  <p className="text-xs text-muted-foreground line-clamp-2">
+                    {course.title}
+                  </p>
+                </div>
+                <Badge variant="secondary" className="ml-2 text-xs">
+                  {course.units !== undefined ? `${course.units}u` : "—"}
+                </Badge>
+              </div>
+              <div className="flex items-center justify-between">
+                <Badge
+                  variant="outline"
+                  className={cn("text-xs", statusColors[planStatus])}
+                >
+                  <StatusIcon className="w-3 h-3 mr-1" />
+                  {planStatus.replace("-", " ")}
+                </Badge>
+              </div>
+            </CardContent>
+          </Card>
+        </TooltipTrigger>
+        {validationMessages.length > 0 && (
+          <TooltipContent side="bottom" className="max-w-xs">
+            <ul className="list-disc pl-4 space-y-1">
+              {validationMessages.map((m, idx) => (
+                <li
+                  key={idx}
+                  className={cn(
+                    m.level === "error" ? "text-red-600" : "text-yellow-700"
+                  )}
+                >
+                  {m.message}
+                </li>
+              ))}
+            </ul>
+          </TooltipContent>
+        )}
+      </Tooltip>
+    </TooltipProvider>
   );
 }

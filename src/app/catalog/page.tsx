@@ -52,6 +52,7 @@ export default function CatalogPage() {
   const { data: courses = [], isLoading } = useCoursesQuery();
   const {
     addPlannedCourse,
+    removePlannedCourse,
     currentPlanId,
     plans: localPlans,
   } = usePlannerStore();
@@ -105,6 +106,43 @@ export default function CatalogPage() {
     });
 
     toast.success(`Added ${selectedCourse.code} to plan`);
+  };
+
+  const handleRemoveFromPlan = async () => {
+    if (!selectedCourse || !activePlan) return;
+
+    const courseCode = selectedCourse.code ?? "";
+
+    // Find the quarter containing the course
+    const quarterWithCourse = activePlan.quarters.find((q) =>
+      q.courses.some((c) => c.courseCode === courseCode)
+    );
+
+    if (!quarterWithCourse) return;
+
+    // Optimistic local update
+    removePlannedCourse(courseCode, quarterWithCourse.id);
+
+    // Build updated quarters payload (remove the course)
+    const updatedQuarters = activePlan.quarters.map((q) =>
+      q.id === quarterWithCourse.id
+        ? {
+            ...q,
+            courses: q.courses.filter((c) => c.courseCode !== courseCode),
+          }
+        : q
+    );
+
+    try {
+      await updatePlanMutation.mutateAsync({
+        planId: activePlan.id!,
+        updates: { quarters: updatedQuarters },
+      });
+      toast.success(`Removed ${courseCode} from plan`);
+    } catch {
+      // revert optimistic change on error
+      addPlannedCourse(courseCode, quarterWithCourse.id);
+    }
   };
 
   const filteredCourses = courses.filter((course) => {
@@ -448,6 +486,17 @@ export default function CatalogPage() {
                         </>
                       )}
                     </Button>
+
+                    {plannedCourseCodes.has(selectedCourse.code ?? "") && (
+                      <Button
+                        variant="outline"
+                        className="w-full mt-2"
+                        onClick={handleRemoveFromPlan}
+                        disabled={!activePlan}
+                      >
+                        <X className="h-4 w-4 mr-2" /> Remove from Plan
+                      </Button>
+                    )}
                   </CardContent>
                 </Card>
               ) : (

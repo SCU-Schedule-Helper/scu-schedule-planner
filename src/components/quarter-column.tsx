@@ -6,11 +6,17 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CourseCard } from "./course-card";
 import type { Quarter, PlannedCourse, Course } from "@/lib/types";
 import { cn } from "@/lib/utils";
-import { Plus } from "lucide-react";
+import { Plus, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useCoursesQuery } from "@/hooks/api/useCoursesQuery";
 import { useMemo } from "react";
 import type { ValidationReport } from "@/lib/validation/types";
+import {
+  TooltipProvider,
+  Tooltip,
+  TooltipTrigger,
+  TooltipContent,
+} from "@/components/ui/tooltip";
 
 interface QuarterColumnProps {
   quarter: Quarter;
@@ -86,9 +92,26 @@ export function QuarterColumn({
           )}
         >
           <span>{quarter.name}</span>
-          <span className="text-sm font-normal text-muted-foreground">
-            {totalUnits} units
-          </span>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span
+                  className={cn(
+                    "text-sm font-normal flex items-center gap-1",
+                    overUnit ? "text-red-600" : "text-muted-foreground"
+                  )}
+                >
+                  {overUnit && <AlertCircle className="w-4 h-4" />}
+                  {totalUnits} units
+                </span>
+              </TooltipTrigger>
+              {overUnit && (
+                <TooltipContent side="bottom">
+                  Quarter exceeds maximum allowed unit load.
+                </TooltipContent>
+              )}
+            </Tooltip>
+          </TooltipProvider>
         </CardTitle>
       </CardHeader>
       <CardContent
