@@ -1,0 +1,5 @@
+{
+  "next": {
+    "entry": ["next.config.mjs", "src/**/*.tsx"]
+  }
+}

@@ -10,7 +10,7 @@
     "format": "prettier --write .",
     "supabase:push": "supabase db push --local;",
     "supabase:reset": "supabase db reset --local",
-    "supabase:typegen": "supabase gen types typescript --local --schema=public > src/lib/database.types.ts"
+    "knip": "knip"
   },
   "dependencies": {
     "@supabase/auth-helpers-nextjs": "^0.10.0",
@@ -32,6 +32,7 @@
     "@types/react-dom": "^18",
     "eslint": "^8",
     "eslint-config-next": "14.2.24",
+    "knip": "^5.61.3",
     "postcss": "^8",
     "supabase": "^2.26.9",
     "tailwindcss": "^3.4.1",
