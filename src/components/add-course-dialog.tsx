@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import {
   Dialog,
   DialogContent,
@@ -14,9 +14,18 @@ import {
   CommandEmpty,
   CommandItem,
 } from "@/components/ui/command";
-import { useSearchCoursesQuery } from "@/hooks/api/useCoursesQuery";
+import {
+  useSearchCoursesQuery,
+  useCoursesQuery,
+} from "@/hooks/api/useCoursesQuery";
 import { useDebounce } from "use-debounce";
 import type { Course } from "@/lib/types";
+import { usePlannerStore } from "@/hooks/usePlannerStore";
+import { useShallow } from "zustand/shallow";
+import {
+  CSMajorRequirements,
+  UniversityCoreRequirements,
+} from "@/data/requirements";
 
 interface AddCourseDialogProps {
   /** Controls dialog visibility */
@@ -36,19 +45,89 @@ export function AddCourseDialog({
   // Debounce user input to avoid firing queries on every keystroke
   const [debouncedSearch] = useDebounce(search, 200);
 
-  // Only fire FTS when at least 2 chars
-  const { data: results = [], isLoading } = useSearchCoursesQuery(
-    debouncedSearch.length >= 2 ? debouncedSearch : null
+  // ------------------------------------------------------------
+  // Catalog search (remote) – only when at least 2 characters
+  // ------------------------------------------------------------
+
+  const { data: rawResults = [], isLoading: isSearching } =
+    useSearchCoursesQuery(debouncedSearch.length >= 2 ? debouncedSearch : null);
+
+  // Full catalog (cached) for default list when search box is empty / <2 chars
+  const { data: catalogCourses = [], isLoading: isCatalogLoading } =
+    useCoursesQuery();
+
+  // ------------------------------------------------------------
+  // Planner state – identify planned & completed courses
+  // ------------------------------------------------------------
+
+  const { plans, currentPlanId } = usePlannerStore(
+    useShallow((s) => ({ plans: s.plans, currentPlanId: s.currentPlanId }))
   );
+
+  const activePlan = currentPlanId
+    ? plans.find((p) => p.id === currentPlanId)
+    : plans[0];
+
+  const takenOrPlanned = useMemo<Set<string>>(() => {
+    const set = new Set<string>();
+    if (!activePlan) return set;
+
+    activePlan.completedCourses.forEach((c) => set.add(c.courseCode));
+    activePlan.quarters.forEach((q) =>
+      q.courses.forEach((c) => set.add(c.courseCode))
+    );
+    return set;
+  }, [activePlan]);
+
+  // ------------------------------------------------------------
+  // Requirement-driven filtering – include only courses required
+  // by non-emphasis requirement groups that are not yet satisfied.
+  // ------------------------------------------------------------
+
+  const requirementCourseSet = useMemo<Set<string>>(() => {
+    const groups = [...CSMajorRequirements, ...UniversityCoreRequirements];
+    const set = new Set<string>();
+    groups.forEach((g) => {
+      g.coursesRequired?.forEach((c) => set.add(c));
+      g.chooseFrom?.options?.forEach((c) => set.add(c));
+    });
+    return set;
+  }, []);
+
+  const sourceCourses: Course[] =
+    debouncedSearch.length >= 2 ? rawResults : catalogCourses;
+
+  const results = useMemo(() => {
+    return (
+      sourceCourses
+        // Remove courses already taken or planned
+        .filter((course: Course) => {
+          const code = course.code ?? "";
+          if (!code) return false;
+          return !takenOrPlanned.has(code);
+        })
+        // Sort: required courses first, then optional; within each group sort by code
+        .sort((a: Course, b: Course) => {
+          const aReq = requirementCourseSet.has(a.code ?? "");
+          const bReq = requirementCourseSet.has(b.code ?? "");
+          if (aReq === bReq) {
+            return (a.code ?? "").localeCompare(b.code ?? "");
+          }
+          return aReq ? -1 : 1; // required first
+        })
+    );
+  }, [sourceCourses, takenOrPlanned, requirementCourseSet]);
 
   const handleSelect = (code: string) => {
     onSelectCourse(code);
-    // reset input & close
+    // Reset search input so the user can quickly add another course without closing the dialog
     setSearch("");
-    onOpenChange(false);
   };
 
   // combine empty state for zero results once user typed (after debounce)
+  const isLoading =
+    debouncedSearch.length >= 2 ? isSearching : isCatalogLoading;
+
   const showEmpty =
     !isLoading && debouncedSearch.length >= 2 && results.length === 0;
 
@@ -62,7 +141,7 @@ export function AddCourseDialog({
         <DialogHeader>
           <DialogTitle>Add Course</DialogTitle>
         </DialogHeader>
-        <Command className="overflow-visible">
+        <Command>
           <CommandInput
             placeholder="Type course code or title..."
             value={search}
