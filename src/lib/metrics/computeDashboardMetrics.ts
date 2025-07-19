@@ -1,4 +1,4 @@
-import type { Course, RequirementGroup, UserPlan } from "@/lib/types";
+import type { Course, RequirementGroup, Substitution, UserPlan } from "@/lib/types";
 import type { ValidationReport } from "@/lib/validation/types";
 
 export interface RequirementProgress {
@@ -21,6 +21,11 @@ export interface DashboardMetrics {
     requirementProgress: RequirementProgress[];
     estimatedGradQuarter: string | null;
     atRiskCourses: string[]; // course codes
+    upperDivUnitsCompleted: number;
+    upperDivUnitsPlanned: number;
+    upperDivUnitsNeeded: number; // constant 60
+    emphasisCompleted: number;
+    emphasisNeeded: number;
 }
 
 /**
@@ -44,6 +49,83 @@ export function computeDashboardMetrics(params: {
         const courseInfo = courses[c.courseCode] ?? { units: 0, isUpperDivision: false } as Partial<Course>;
         unitsCompleted += courseInfo.units ?? 0;
         if (courseInfo.isUpperDivision) upperDivisionCompleted += courseInfo.units ?? 0;
+    }
+
+    // Upper-division unit metrics ----------------------------------------
+    let upperDivUnitsCompleted = 0;
+    let upperDivUnitsPlanned = 0;
+
+    // Build map for substitution overrides keyed by course code
+    const substitutionOverrides: Record<string, { isUD?: boolean | null; units?: number | null }> = {};
+
+    const planSubs: Substitution[] = (plan as unknown as { substitutions: Substitution[] }).substitutions ?? [];
+    planSubs.forEach((s) => {
+        substitutionOverrides[s.substituteCourseCode] = {
+            isUD: s.isUpperDivOverride,
+            units: s.unitsOverride,
+        };
+    });
+
+    const isUpperDivisionCourse = (code: string): boolean => {
+        const info = courses[code];
+        if (info && info.isUpperDivision !== undefined) {
+            return Boolean(info.isUpperDivision);
+        }
+        // Fallback: numeric part >= 100
+        const parts = code.split(" ");
+        const num = +parts[1];
+        return !isNaN(num) && num >= 100;
+    };
+
+    plan.completedCourses.forEach((c) => {
+        const override = substitutionOverrides[c.courseCode];
+        const ud = override?.isUD ?? isUpperDivisionCourse(c.courseCode);
+        if (ud) {
+            const info = courses[c.courseCode] ?? { units: 0 } as Partial<Course>;
+            const units = override?.units ?? info.units ?? 0;
+            upperDivUnitsCompleted += units;
+        }
+    });
+
+    plan.quarters.forEach((q) => {
+        q.courses.forEach((pc) => {
+            const override = substitutionOverrides[pc.courseCode];
+            const ud = override?.isUD ?? isUpperDivisionCourse(pc.courseCode);
+            if (ud) {
+                const info = courses[pc.courseCode] ?? { units: 0 } as Partial<Course>;
+                const units = override?.units ?? info.units ?? 0;
+                upperDivUnitsPlanned += units;
+            }
+        });
+    });
+
+    const UPPER_DIV_UNITS_REQUIREMENT = 60;
+
+    // Emphasis requirement metrics --------------------------------------
+    let emphasisCompleted = 0;
+    let emphasisNeeded = 0;
+
+    if (params.requirements && params.requirements.length > 0) {
+        const emphasisGroups = params.requirements.filter((g) => g.type === "emphasis");
+
+        // build taken/planned set
+        const takenPlanned = new Set<string>();
+        plan.completedCourses.forEach((c) => takenPlanned.add(c.courseCode));
+        plan.quarters.forEach((q) => q.courses.forEach((pc) => takenPlanned.add(pc.courseCode)));
+
+        for (const g of emphasisGroups) {
+            const reqCodes = g.coursesRequired ?? [];
+            emphasisNeeded += reqCodes.length;
+            reqCodes.forEach((c) => {
+                if (takenPlanned.has(c)) emphasisCompleted += 1;
+            });
+
+            if (g.chooseFrom) {
+                emphasisNeeded += g.chooseFrom.count;
+                const satisfied = g.chooseFrom.options.filter((c) => takenPlanned.has(c)).length;
+                emphasisCompleted += Math.min(satisfied, g.chooseFrom.count);
+            }
+        }
     }
 
     // Planned units & units per quarter ---------------------------------
@@ -101,5 +183,10 @@ export function computeDashboardMetrics(params: {
         requirementProgress,
         estimatedGradQuarter,
         atRiskCourses,
+        upperDivUnitsCompleted,
+        upperDivUnitsPlanned,
+        upperDivUnitsNeeded: UPPER_DIV_UNITS_REQUIREMENT,
+        emphasisCompleted,
+        emphasisNeeded,
     };
 } 
