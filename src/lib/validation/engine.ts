@@ -76,10 +76,41 @@ export function validatePlan({
     const messages: ValidationMessage[] = [];
     const courseReports: Record<string, CourseReport> = {};
 
+    // -------------------------------------------------------------------
     // Build lookup structures
-    const completedSet = new Set<string>(
-        plan.completedCourses.map((c) => c.courseCode ?? c.code ?? "")
-    );
+    // -------------------------------------------------------------------
+
+    // Helper: Build a bidirectional cross-listing map so we can treat
+    // aliases (e.g., "ELEN 21" ↔ "CSEN 21") as equivalent when evaluating
+    // prerequisites.
+    const crossMap = new Map<string, string[]>();
+    for (const c of Object.values(courses)) {
+        if (!c.code) continue;
+        // Forward aliases declared on this course
+        if (Array.isArray(c.crossListedAs)) {
+            for (const alias of c.crossListedAs) {
+                // course -> alias
+                crossMap.set(c.code, [...(crossMap.get(c.code) ?? []), alias]);
+                // alias -> course (reverse lookup)
+                crossMap.set(alias, [...(crossMap.get(alias) ?? []), c.code]);
+            }
+        }
+    }
+
+    // Utility to expand a code with its cross-listed equivalents
+    const expandAliases = (code: string): string[] => {
+        return [code, ...(crossMap.get(code) ?? [])];
+    };
+
+    // Set of all courses the student has taken *or* their aliases
+    const completedSet = new Set<string>();
+    for (const c of plan.completedCourses) {
+        const code = c.courseCode ?? c.code ?? "";
+        if (!code) continue;
+        for (const alias of expandAliases(code)) {
+            completedSet.add(alias);
+        }
+    }
 
     // map quarter -> PlannedCourse[]
     const quarterMap = new Map<string, PlannedCourse[]>(
@@ -216,7 +247,10 @@ export function validatePlan({
         // After validations for the quarter, mark these courses as taken for next iterations
         for (const pc of coursesInQuarter) {
             const code = pc.courseCode ?? pc.code ?? "";
-            if (code) takenBeforeSet.add(code);
+            if (!code) continue;
+            for (const alias of expandAliases(code)) {
+                takenBeforeSet.add(alias);
+            }
         }
     }
 

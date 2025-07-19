@@ -190,9 +190,9 @@ export async function POST(
             name: plan.name,
             majorId: "", // unknown in current schema
             quarters: quarters as unknown as QuarterType[],
-            completedCourses: (metadata.completedCourses as PlannedCourseType[]) ?? [],
-            maxUnitsPerQuarter: (metadata.maxUnitsPerQuarter as number) ?? 20,
-            includeSummer: (metadata.includeSummer as boolean) ?? true,
+            completedCourses: (metadata.completed_courses as PlannedCourseType[]) ?? [],
+            maxUnitsPerQuarter: (metadata.max_units_per_quarter as number) ?? 20,
+            includeSummer: (metadata.include_summer as boolean) ?? true,
         };
 
         const courseMap = await fetchAllCoursesAsMap(supabase);

@@ -150,9 +150,15 @@ const RequirementChecklist: React.FC<RequirementChecklistProps> = ({
         courseCode,
       });
     } else {
-      // Optimistic update
-      addCompletedCourse(courseCode);
-      addCompletedCourseMutation.mutate({ planId: currentPlanId, courseCode });
+      // Optimistic update with default passing grade ("P") so that any
+      // prerequisite rules that specify a minimum grade (e.g., "C-") treat
+      // the course as successfully completed.
+      addCompletedCourse(courseCode, "P");
+      addCompletedCourseMutation.mutate({
+        planId: currentPlanId,
+        courseCode,
+        grade: "P",
+      });
     }
   };
 

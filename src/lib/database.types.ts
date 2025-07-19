@@ -419,6 +419,47 @@ export type Database = {
         }
         Relationships: []
       }
+      substitutions: {
+        Row: {
+          created_at: string | null
+          id: string
+          is_upper_div_override: boolean | null
+          placeholder_code: string
+          plan_id: string
+          requirement_group_id: string
+          substitute_course_code: string
+          units_override: number | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          is_upper_div_override?: boolean | null
+          placeholder_code: string
+          plan_id: string
+          requirement_group_id: string
+          substitute_course_code: string
+          units_override?: number | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          is_upper_div_override?: boolean | null
+          placeholder_code?: string
+          plan_id?: string
+          requirement_group_id?: string
+          substitute_course_code?: string
+          units_override?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "substitutions_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "plans"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never

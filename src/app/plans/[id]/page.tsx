@@ -66,8 +66,10 @@ export default function PlanDetailPage() {
   // settings dialog state
   const [settingsOpen, setSettingsOpen] = useState(false);
 
-  // Validation report
-  const validationReport = usePlanValidation(plan ?? null);
+  // Validation report using the store-backed version of the plan so that
+  // optimistic updates (e.g. marking a course completed) are reflected
+  // immediately in prerequisite checks.
+  const validationReport = usePlanValidation();
 
   // Sync local quarters state when plan data arrives or updates
   useEffect(() => {
@@ -279,7 +281,6 @@ export default function PlanDetailPage() {
                       courseCode,
                       quarter: targetQuarterId,
                     });
-                    setDialogOpen(false);
                   } catch {
                     // Roll back on failure
                     const { removePlannedCourse } = usePlannerStore.getState();

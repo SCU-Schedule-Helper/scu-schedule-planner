@@ -118,6 +118,8 @@ export const SubstitutionSchema = z.object({
   substituteCourseCode: z.string(),
   advisorNote: z.string().optional(),
   approvedAt: z.date().optional(),
+  isUpperDivOverride: z.boolean().nullable().optional(),
+  unitsOverride: z.number().nullable().optional(),
 });
 export type Substitution = z.infer<typeof SubstitutionSchema>;
 
