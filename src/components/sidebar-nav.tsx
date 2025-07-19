@@ -27,11 +27,6 @@ const navigation = [
     href: "/requirements",
     icon: CheckSquare,
   },
-  {
-    name: "Assistant",
-    href: "/assistant",
-    icon: LayoutDashboard,
-  },
 ];
 
 export function SidebarNav() {
