@@ -31,6 +31,9 @@ import { useDashboardMetrics } from "@/hooks/useDashboardMetrics";
 import { UnitsLineChart } from "@/components/dashboard/UnitsLineChart";
 import { RequirementBarChart } from "@/components/dashboard/RequirementBarChart";
 import { AtRiskList } from "@/components/dashboard/AtRiskList";
+import { PrereqDepthBarChart } from "@/components/dashboard/PrereqDepthBarChart";
+import { usePrereqDepthData } from "@/hooks/usePrereqDepthData";
+import { useRouter } from "next/navigation";
 
 export default function DashboardPage() {
   const {
@@ -65,6 +68,9 @@ export default function DashboardPage() {
 
   // ---- Dashboard metrics
   const metrics = useDashboardMetrics();
+
+  const depthData = usePrereqDepthData();
+  const router = useRouter();
 
   const handleAddCourse = async (quarterId: string) => {
     if (!plan?.id) return;
@@ -123,7 +129,7 @@ export default function DashboardPage() {
                 </CardTitle>
                 <Target className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
-              <CardContent className="flex items-center justify-between">
+              <CardContent className="flex items-center justify-between gap-6">
                 <ProgressRing
                   progress={
                     metrics
@@ -150,6 +156,42 @@ export default function DashboardPage() {
                     %
                   </span>
                 </ProgressRing>
+
+                {/* Upper-division progress ring */}
+                {metrics && (
+                  <ProgressRing
+                    progress={Math.round(
+                      (((metrics?.upperDivUnitsCompleted ?? 0) +
+                        (metrics?.upperDivUnitsPlanned ?? 0)) /
+                        (metrics?.upperDivUnitsNeeded || 60)) *
+                        100
+                    )}
+                    size={60}
+                    strokeWidth={6}
+                  >
+                    <span className="text-sm font-semibold text-blue-600">
+                      {metrics.upperDivUnitsCompleted +
+                        metrics.upperDivUnitsPlanned}
+                      /{metrics.upperDivUnitsNeeded}
+                    </span>
+                  </ProgressRing>
+                )}
+
+                {/* Emphasis progress ring */}
+                {metrics && metrics.emphasisNeeded > 0 && (
+                  <ProgressRing
+                    progress={Math.round(
+                      (metrics.emphasisCompleted / metrics.emphasisNeeded) * 100
+                    )}
+                    size={60}
+                    strokeWidth={6}
+                    className="ml-2"
+                  >
+                    <span className="text-sm font-semibold text-purple-600">
+                      {metrics.emphasisCompleted}/{metrics.emphasisNeeded}
+                    </span>
+                  </ProgressRing>
+                )}
               </CardContent>
             </Card>
           </div>
@@ -188,6 +230,25 @@ export default function DashboardPage() {
               </div>
               <AtRiskList courseCodes={metrics.atRiskCourses} />
             </div>
+          )}
+
+          {/* Prerequisite Chain Depth Chart */}
+          {metrics && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-sm font-medium text-scu-cardinal">
+                  Prerequisite Chain Depth (Top 15)
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <PrereqDepthBarChart
+                  data={depthData}
+                  onSelectCourse={(code) =>
+                    router.push(`/catalog?course=${encodeURIComponent(code)}`)
+                  }
+                />
+              </CardContent>
+            </Card>
           )}
 
           {/* Quarterly Plan Board */}
@@ -230,10 +291,8 @@ export default function DashboardPage() {
                   courseCode,
                   quarter: targetQuarterId,
                 });
-                setDialogOpen(false);
               } catch {
                 // Roll back optimistic update if request failed
-
                 removePlannedCourse(courseCode, targetQuarterId);
               }
             }}

@@ -6,6 +6,8 @@ import "reactflow/dist/style.css";
 
 import { useCourseQuery } from "@/hooks/api/useCoursesQuery";
 import { useCoursesQuery } from "@/hooks/api/useCoursesQuery";
+import { usePlannerStore } from "@/hooks/usePlannerStore";
+import { useShallow } from "zustand/shallow";
 
 interface PrerequisiteGraphProps {
   courseCode: string;
@@ -29,6 +31,19 @@ const PrerequisiteGraph: React.FC<PrerequisiteGraphProps> = ({
   const { data: course } = useCourseQuery(courseCode);
   const { data: catalog = [] } = useCoursesQuery();
 
+  // Pull completedCourse codes array from store with stable reference
+  const completedCourseCodes = usePlannerStore(
+    useShallow((state) => {
+      const plan = state.plans.find((p) => p.id === state.currentPlanId);
+      return plan ? plan.completedCourses.map((c) => c.courseCode) : [];
+    })
+  );
+
+  const completedCourseSet = useMemo(
+    () => new Set(completedCourseCodes),
+    [completedCourseCodes.join(",")]
+  );
+
   const { nodes, edges } = useMemo(() => {
     const effectivePrereqs = course?.prerequisites;
 
@@ -36,19 +51,26 @@ const PrerequisiteGraph: React.FC<PrerequisiteGraphProps> = ({
       return { nodes: [] as Node[], edges: [] as Edge[] };
     }
 
+    // Helper to style node based on completion status
+    const makeNodeStyle = (code: string): React.CSSProperties => {
+      const completed = completedCourseSet.has(code);
+      return {
+        background: completed ? "#ecfdf5" : "#fef2f2", // green-50 vs red-50
+        border: completed ? "1px solid #34d399" : "1px solid #f87171", // green-400 / red-400
+        padding: 6,
+        borderRadius: 4,
+        fontWeight: completed ? 500 : 600,
+        fontSize: 12,
+      } as React.CSSProperties;
+    };
+
     // Root node – the course itself
     const nodes: Node[] = [
       {
         id: courseCode,
         data: { label: courseCode },
         position: { x: 250, y: 150 },
-        style: {
-          background: "#fff",
-          border: "1px solid #949494",
-          padding: 8,
-          borderRadius: 4,
-          fontWeight: 600,
-        },
+        style: makeNodeStyle(courseCode),
       },
     ];
 
@@ -83,13 +105,7 @@ const PrerequisiteGraph: React.FC<PrerequisiteGraphProps> = ({
             id: code,
             data: { label: code },
             position: { x: xPos, y: 0 },
-            style: {
-              background: "#F9FAFB",
-              border: "1px solid #D1D5DB",
-              padding: 6,
-              borderRadius: 4,
-              fontSize: 12,
-            },
+            style: makeNodeStyle(code),
           });
           xPos += 150;
         }
@@ -109,7 +125,7 @@ const PrerequisiteGraph: React.FC<PrerequisiteGraphProps> = ({
     });
 
     return { nodes, edges };
-  }, [course, courseCode, catalog]);
+  }, [course, courseCode, catalog, completedCourseSet]);
 
   // If the course has no prerequisites, render nothing
   if (!nodes.length) {

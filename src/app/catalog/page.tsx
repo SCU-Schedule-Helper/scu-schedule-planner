@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect, useRef } from "react";
 import { SidebarNav } from "@/components/sidebar-nav";
 import { HeaderBar } from "@/components/header-bar";
 import { Input } from "@/components/ui/input";
@@ -38,6 +38,7 @@ import type { Course, CoursePrerequisite } from "@/lib/types";
 import { Search, Filter, Plus, BookOpen, X } from "lucide-react";
 import { toast } from "sonner";
 import PrerequisiteGraph from "@/components/CourseCatalog/PrerequisiteGraph";
+import { useSearchParams } from "next/navigation";
 
 export default function CatalogPage() {
   const [searchQuery, setSearchQuery] = useState("");
@@ -63,6 +64,32 @@ export default function CatalogPage() {
 
   const addPlannedCourseMutation = useAddPlannedCourseMutation();
   const updatePlanMutation = useUpdatePlanMutation();
+
+  const searchParams = useSearchParams();
+
+  const detailRef = useRef<HTMLDivElement | null>(null);
+
+  // Effect: if ?course=CODE in query, auto-select that course once catalog loaded
+  useEffect(() => {
+    const codeParam = searchParams.get("course");
+    if (codeParam && courses.length) {
+      const match = courses.find((c) => c.code === codeParam);
+      if (match) setSelectedCourse(match);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams, courses]);
+
+  // Scroll into view & pulse highlight when selectedCourse changes
+  useEffect(() => {
+    if (selectedCourse && detailRef.current) {
+      detailRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
+      detailRef.current.classList.add("ring-2", "ring-scu-cardinal");
+      const timer = setTimeout(() => {
+        detailRef.current?.classList.remove("ring-2", "ring-scu-cardinal");
+      }, 2000);
+      return () => clearTimeout(timer);
+    }
+  }, [selectedCourse]);
 
   // Gather codes already planned (from local store for immediate reactivity)
   const plannedCourseCodes = new Set<string>();
@@ -410,7 +437,7 @@ export default function CatalogPage() {
             {/* Course Detail Panel */}
             <div className="lg:w-1/3">
               {selectedCourse ? (
-                <Card className="sticky top-6">
+                <Card className="sticky top-6" ref={detailRef}>
                   <CardHeader>
                     <div className="flex items-center justify-between">
                       <CardTitle className="text-scu-cardinal">
@@ -500,7 +527,7 @@ export default function CatalogPage() {
                   </CardContent>
                 </Card>
               ) : (
-                <Card className="sticky top-6">
+                <Card className="sticky top-6" ref={detailRef}>
                   <CardContent className="p-8 text-center">
                     <BookOpen className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
                     <p className="text-muted-foreground">
