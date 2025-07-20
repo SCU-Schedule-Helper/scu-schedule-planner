@@ -9,184 +9,283 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      corequisites: {
+      core_curriculum_pathways: {
         Row: {
-          corequisite_course_id: string
-          course_id: string
-          id: string
-        }
-        Insert: {
-          corequisite_course_id: string
-          course_id: string
-          id?: string
-        }
-        Update: {
-          corequisite_course_id?: string
-          course_id?: string
-          id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "corequisites_corequisite_course_id_fkey"
-            columns: ["corequisite_course_id"]
-            isOneToOne: false
-            referencedRelation: "courses"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "corequisites_course_id_fkey"
-            columns: ["course_id"]
-            isOneToOne: false
-            referencedRelation: "courses"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      course_quarters: {
-        Row: {
-          course_id: string
-          id: string
-          quarter: Database["public"]["Enums"]["quarter_type"]
-        }
-        Insert: {
-          course_id: string
-          id?: string
-          quarter: Database["public"]["Enums"]["quarter_type"]
-        }
-        Update: {
-          course_id?: string
-          id?: string
-          quarter?: Database["public"]["Enums"]["quarter_type"]
-        }
-        Relationships: [
-          {
-            foreignKeyName: "course_quarters_course_id_fkey"
-            columns: ["course_id"]
-            isOneToOne: false
-            referencedRelation: "courses"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      courses: {
-        Row: {
-          code: string
+          associated_courses: string | null
           created_at: string
-          department: string
           description: string | null
           id: string
-          is_upper_division: boolean
-          title: string
-          units: number
+          name: string
+          src: string | null
           updated_at: string
         }
         Insert: {
-          code: string
-          created_at?: string
-          department: string
-          description?: string | null
-          id?: string
-          is_upper_division?: boolean
-          title: string
-          units: number
-          updated_at?: string
-        }
-        Update: {
-          code?: string
-          created_at?: string
-          department?: string
-          description?: string | null
-          id?: string
-          is_upper_division?: boolean
-          title?: string
-          units?: number
-          updated_at?: string
-        }
-        Relationships: []
-      }
-      cross_listed_courses: {
-        Row: {
-          course_id: string
-          cross_listed_course_id: string
-          id: string
-        }
-        Insert: {
-          course_id: string
-          cross_listed_course_id: string
-          id?: string
-        }
-        Update: {
-          course_id?: string
-          cross_listed_course_id?: string
-          id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "cross_listed_courses_course_id_fkey"
-            columns: ["course_id"]
-            isOneToOne: false
-            referencedRelation: "courses"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "cross_listed_courses_cross_listed_course_id_fkey"
-            columns: ["cross_listed_course_id"]
-            isOneToOne: false
-            referencedRelation: "courses"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      emphasis_areas: {
-        Row: {
-          created_at: string
-          description: string | null
-          id: string
-          name: string
-        }
-        Insert: {
+          associated_courses?: string | null
           created_at?: string
           description?: string | null
           id?: string
           name: string
+          src?: string | null
+          updated_at?: string
         }
         Update: {
+          associated_courses?: string | null
           created_at?: string
           description?: string | null
           id?: string
           name?: string
+          src?: string | null
+          updated_at?: string
         }
         Relationships: []
       }
-      emphasis_requirements: {
+      core_curriculum_requirements: {
         Row: {
-          emphasis_id: string
+          applies_to: string | null
+          created_at: string
+          description: string | null
+          fulfilled_by: string | null
           id: string
-          requirement_id: string
+          name: string
+          src: string | null
+          updated_at: string
         }
         Insert: {
-          emphasis_id: string
+          applies_to?: string | null
+          created_at?: string
+          description?: string | null
+          fulfilled_by?: string | null
           id?: string
-          requirement_id: string
+          name: string
+          src?: string | null
+          updated_at?: string
         }
         Update: {
-          emphasis_id?: string
+          applies_to?: string | null
+          created_at?: string
+          description?: string | null
+          fulfilled_by?: string | null
           id?: string
-          requirement_id?: string
+          name?: string
+          src?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      courses: {
+        Row: {
+          code: string
+          corequisites: Json | null
+          created_at: string
+          description: string | null
+          id: string
+          prerequisites: Json | null
+          professor: string | null
+          quarters_offered: Json | null
+          src: string | null
+          title: string
+          units: string | null
+          updated_at: string
+        }
+        Insert: {
+          code: string
+          corequisites?: Json | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          prerequisites?: Json | null
+          professor?: string | null
+          quarters_offered?: Json | null
+          src?: string | null
+          title: string
+          units?: string | null
+          updated_at?: string
+        }
+        Update: {
+          code?: string
+          corequisites?: Json | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          prerequisites?: Json | null
+          professor?: string | null
+          quarters_offered?: Json | null
+          src?: string | null
+          title?: string
+          units?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      departments_and_programs: {
+        Row: {
+          created_at: string
+          description: string | null
+          emphases: Json | null
+          id: string
+          majors_offered: Json | null
+          minors_offered: Json | null
+          name: string
+          school_name: string | null
+          src: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          emphases?: Json | null
+          id?: string
+          majors_offered?: Json | null
+          minors_offered?: Json | null
+          name: string
+          school_name?: string | null
+          src?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          emphases?: Json | null
+          id?: string
+          majors_offered?: Json | null
+          minors_offered?: Json | null
+          name?: string
+          school_name?: string | null
+          src?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      emphasis_areas_enhanced: {
+        Row: {
+          applies_to: string | null
+          course_requirements_expression: string | null
+          created_at: string
+          department_code: string | null
+          description: string | null
+          id: string
+          name: string
+          name_of_which_it_applies_to: string | null
+          other_notes: string | null
+          other_requirements: Json | null
+          src: string | null
+          unit_requirements: Json | null
+          updated_at: string
+        }
+        Insert: {
+          applies_to?: string | null
+          course_requirements_expression?: string | null
+          created_at?: string
+          department_code?: string | null
+          description?: string | null
+          id?: string
+          name: string
+          name_of_which_it_applies_to?: string | null
+          other_notes?: string | null
+          other_requirements?: Json | null
+          src?: string | null
+          unit_requirements?: Json | null
+          updated_at?: string
+        }
+        Update: {
+          applies_to?: string | null
+          course_requirements_expression?: string | null
+          created_at?: string
+          department_code?: string | null
+          description?: string | null
+          id?: string
+          name?: string
+          name_of_which_it_applies_to?: string | null
+          other_notes?: string | null
+          other_requirements?: Json | null
+          src?: string | null
+          unit_requirements?: Json | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      majors: {
+        Row: {
+          course_requirements_expression: string | null
+          created_at: string
+          department_code: string | null
+          description: string | null
+          id: string
+          name: string
+          other_notes: string | null
+          other_requirements: Json | null
+          requires_emphasis: number | null
+          src: string | null
+          unit_requirements: Json | null
+          updated_at: string
+        }
+        Insert: {
+          course_requirements_expression?: string | null
+          created_at?: string
+          department_code?: string | null
+          description?: string | null
+          id?: string
+          name: string
+          other_notes?: string | null
+          other_requirements?: Json | null
+          requires_emphasis?: number | null
+          src?: string | null
+          unit_requirements?: Json | null
+          updated_at?: string
+        }
+        Update: {
+          course_requirements_expression?: string | null
+          created_at?: string
+          department_code?: string | null
+          description?: string | null
+          id?: string
+          name?: string
+          other_notes?: string | null
+          other_requirements?: Json | null
+          requires_emphasis?: number | null
+          src?: string | null
+          unit_requirements?: Json | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      planned_courses: {
+        Row: {
+          course_code: string
+          created_at: string
+          id: string
+          plan_id: string
+          quarter: string
+          status: Database["public"]["Enums"]["course_status"] | null
+          updated_at: string
+          year: number
+        }
+        Insert: {
+          course_code: string
+          created_at?: string
+          id?: string
+          plan_id: string
+          quarter: string
+          status?: Database["public"]["Enums"]["course_status"] | null
+          updated_at?: string
+          year: number
+        }
+        Update: {
+          course_code?: string
+          created_at?: string
+          id?: string
+          plan_id?: string
+          quarter?: string
+          status?: Database["public"]["Enums"]["course_status"] | null
+          updated_at?: string
+          year?: number
         }
         Relationships: [
           {
-            foreignKeyName: "emphasis_requirements_emphasis_id_fkey"
-            columns: ["emphasis_id"]
+            foreignKeyName: "planned_courses_plan_id_fkey"
+            columns: ["plan_id"]
             isOneToOne: false
-            referencedRelation: "emphasis_areas"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "emphasis_requirements_requirement_id_fkey"
-            columns: ["requirement_id"]
-            isOneToOne: false
-            referencedRelation: "requirements"
+            referencedRelation: "plans"
             referencedColumns: ["id"]
           },
         ]
@@ -194,261 +293,108 @@ export type Database = {
       plans: {
         Row: {
           created_at: string
+          emphasis: string | null
           emphasis_id: string | null
+          graduation_year: number | null
           id: string
+          major: string | null
           metadata: Json | null
           name: string
           updated_at: string
-          user_id: string
+          user_id: string | null
         }
         Insert: {
           created_at?: string
+          emphasis?: string | null
           emphasis_id?: string | null
+          graduation_year?: number | null
           id?: string
+          major?: string | null
           metadata?: Json | null
           name: string
           updated_at?: string
-          user_id: string
+          user_id?: string | null
         }
         Update: {
           created_at?: string
+          emphasis?: string | null
           emphasis_id?: string | null
+          graduation_year?: number | null
           id?: string
+          major?: string | null
           metadata?: Json | null
           name?: string
           updated_at?: string
-          user_id?: string
+          user_id?: string | null
         }
-        Relationships: [
-          {
-            foreignKeyName: "plans_emphasis_id_fkey"
-            columns: ["emphasis_id"]
-            isOneToOne: false
-            referencedRelation: "emphasis_areas"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
-      prerequisite_courses: {
+      schools: {
         Row: {
-          id: string
-          prerequisite_course_id: string
-          prerequisite_id: string
-        }
-        Insert: {
-          id?: string
-          prerequisite_course_id: string
-          prerequisite_id: string
-        }
-        Update: {
-          id?: string
-          prerequisite_course_id?: string
-          prerequisite_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "prerequisite_courses_prerequisite_course_id_fkey"
-            columns: ["prerequisite_course_id"]
-            isOneToOne: false
-            referencedRelation: "courses"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "prerequisite_courses_prerequisite_id_fkey"
-            columns: ["prerequisite_id"]
-            isOneToOne: false
-            referencedRelation: "prerequisites"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      prerequisites: {
-        Row: {
-          course_id: string
+          course_requirements_expression: string | null
           created_at: string
+          description: string | null
           id: string
-          min_grade: string | null
-          prerequisite_type: Database["public"]["Enums"]["prerequisite_type"]
-        }
-        Insert: {
-          course_id: string
-          created_at?: string
-          id?: string
-          min_grade?: string | null
-          prerequisite_type: Database["public"]["Enums"]["prerequisite_type"]
-        }
-        Update: {
-          course_id?: string
-          created_at?: string
-          id?: string
-          min_grade?: string | null
-          prerequisite_type?: Database["public"]["Enums"]["prerequisite_type"]
-        }
-        Relationships: [
-          {
-            foreignKeyName: "prerequisites_course_id_fkey"
-            columns: ["course_id"]
-            isOneToOne: false
-            referencedRelation: "courses"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      requirement_choose_from: {
-        Row: {
-          count: number
-          created_at: string
-          id: string
-          requirement_id: string
-        }
-        Insert: {
-          count?: number
-          created_at?: string
-          id?: string
-          requirement_id: string
-        }
-        Update: {
-          count?: number
-          created_at?: string
-          id?: string
-          requirement_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "requirement_choose_from_requirement_id_fkey"
-            columns: ["requirement_id"]
-            isOneToOne: false
-            referencedRelation: "requirements"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      requirement_choose_options: {
-        Row: {
-          course_id: string
-          id: string
-          requirement_choose_from_id: string
-        }
-        Insert: {
-          course_id: string
-          id?: string
-          requirement_choose_from_id: string
-        }
-        Update: {
-          course_id?: string
-          id?: string
-          requirement_choose_from_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "requirement_choose_options_course_id_fkey"
-            columns: ["course_id"]
-            isOneToOne: false
-            referencedRelation: "courses"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "requirement_choose_options_requirement_choose_from_id_fkey"
-            columns: ["requirement_choose_from_id"]
-            isOneToOne: false
-            referencedRelation: "requirement_choose_from"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      requirement_courses: {
-        Row: {
-          course_id: string
-          id: string
-          requirement_id: string
-        }
-        Insert: {
-          course_id: string
-          id?: string
-          requirement_id: string
-        }
-        Update: {
-          course_id?: string
-          id?: string
-          requirement_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "requirement_courses_course_id_fkey"
-            columns: ["course_id"]
-            isOneToOne: false
-            referencedRelation: "courses"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "requirement_courses_requirement_id_fkey"
-            columns: ["requirement_id"]
-            isOneToOne: false
-            referencedRelation: "requirements"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      requirements: {
-        Row: {
-          created_at: string
-          id: string
-          min_units: number | null
           name: string
-          notes: string | null
-          type: Database["public"]["Enums"]["requirement_type"]
+          other_requirements: Json | null
+          src: string | null
+          unit_requirements: Json | null
           updated_at: string
         }
         Insert: {
+          course_requirements_expression?: string | null
           created_at?: string
+          description?: string | null
           id?: string
-          min_units?: number | null
           name: string
-          notes?: string | null
-          type: Database["public"]["Enums"]["requirement_type"]
+          other_requirements?: Json | null
+          src?: string | null
+          unit_requirements?: Json | null
           updated_at?: string
         }
         Update: {
+          course_requirements_expression?: string | null
           created_at?: string
+          description?: string | null
           id?: string
-          min_units?: number | null
           name?: string
-          notes?: string | null
-          type?: Database["public"]["Enums"]["requirement_type"]
+          other_requirements?: Json | null
+          src?: string | null
+          unit_requirements?: Json | null
           updated_at?: string
         }
         Relationships: []
       }
       substitutions: {
         Row: {
-          created_at: string | null
+          approved: boolean | null
+          created_at: string
           id: string
-          is_upper_div_override: boolean | null
-          placeholder_code: string
+          original_course_code: string
           plan_id: string
-          requirement_group_id: string
+          reason: string | null
           substitute_course_code: string
-          units_override: number | null
+          updated_at: string
         }
         Insert: {
-          created_at?: string | null
+          approved?: boolean | null
+          created_at?: string
           id?: string
-          is_upper_div_override?: boolean | null
-          placeholder_code: string
+          original_course_code: string
           plan_id: string
-          requirement_group_id: string
+          reason?: string | null
           substitute_course_code: string
-          units_override?: number | null
+          updated_at?: string
         }
         Update: {
-          created_at?: string | null
+          approved?: boolean | null
+          created_at?: string
           id?: string
-          is_upper_div_override?: boolean | null
-          placeholder_code?: string
+          original_course_code?: string
           plan_id?: string
-          requirement_group_id?: string
+          reason?: string | null
           substitute_course_code?: string
-          units_override?: number | null
+          updated_at?: string
         }
         Relationships: [
           {
@@ -468,10 +414,7 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
-      course_status: "planned" | "completed" | "not_started"
-      prerequisite_type: "required" | "or" | "recommended"
-      quarter_type: "Fall" | "Winter" | "Spring" | "Summer"
-      requirement_type: "major" | "emphasis" | "core" | "university"
+      course_status: "planned" | "completed" | "in-progress" | "not_started"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -587,10 +530,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      course_status: ["planned", "completed", "not_started"],
-      prerequisite_type: ["required", "or", "recommended"],
-      quarter_type: ["Fall", "Winter", "Spring", "Summer"],
-      requirement_type: ["major", "emphasis", "core", "university"],
+      course_status: ["planned", "completed", "in-progress", "not_started"],
     },
   },
 } as const

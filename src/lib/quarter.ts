@@ -74,7 +74,7 @@ import type { Quarter } from "./types";
 export function buildQuarter(meta: QuarterMeta): Quarter {
     const { season, year } = meta;
     return {
-        id: `${season}-${year}`,
+        id: `${year}-${season}`,
         name: `${season} ${year}`,
         season,
         year,
