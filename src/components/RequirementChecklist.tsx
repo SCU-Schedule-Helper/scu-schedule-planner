@@ -1,12 +1,10 @@
 import { useState } from "react";
 import { RequirementGroup } from "@/lib/types";
 import { usePlannerStore } from "@/hooks/usePlannerStore";
-import {
-  useAddCompletedCourseMutation,
-  useRemoveCompletedCourseMutation,
-} from "@/hooks/api/usePlanQuery";
+// Using planner store directly since these mutations aren't implemented in the API yet
 import { Checkbox } from "@/components/ui/checkbox";
 import { useCoursesQuery } from "@/hooks/api/useCoursesQuery";
+import { formatUnits } from "@/lib/types";
 
 interface RequirementChecklistProps {
   requirements: RequirementGroup[];
@@ -25,7 +23,8 @@ const CourseItem: React.FC<CourseItemProps> = ({
 }) => {
   const [isExpanded, setIsExpanded] = useState(false);
   const { data: allCourses = [], isLoading } = useCoursesQuery();
-  const course = allCourses.find((c) => c.code === courseCode);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const course = allCourses.find((c: any) => c.code === courseCode);
 
   const borderStyles =
     status === "completed"
@@ -86,9 +85,7 @@ const CourseItem: React.FC<CourseItemProps> = ({
             <>
               {course.title && <p className="font-medium">{course.title}</p>}
               {course.units !== undefined && (
-                <p className="text-gray-600">
-                  {course.units} {course.units === 1 ? "unit" : "units"}
-                </p>
+                <p className="text-gray-600">{formatUnits(course.units)}</p>
               )}
               {course.description && <p>{course.description}</p>}
             </>
@@ -110,9 +107,6 @@ const RequirementChecklist: React.FC<RequirementChecklistProps> = ({
 }) => {
   const { addCompletedCourse, removeCompletedCourse, currentPlanId, plans } =
     usePlannerStore();
-
-  const addCompletedCourseMutation = useAddCompletedCourseMutation();
-  const removeCompletedCourseMutation = useRemoveCompletedCourseMutation();
 
   const currentPlan = plans.find((p) => p.id === currentPlanId);
   const completedCourses =
@@ -144,21 +138,14 @@ const RequirementChecklist: React.FC<RequirementChecklistProps> = ({
 
     if (status === "completed") {
       // Optimistic update (local only; TODO: implement server removal)
+      // Using store directly since API mutations aren't implemented yet
       removeCompletedCourse(courseCode);
-      removeCompletedCourseMutation.mutate({
-        planId: currentPlanId,
-        courseCode,
-      });
     } else {
       // Optimistic update with default passing grade ("P") so that any
       // prerequisite rules that specify a minimum grade (e.g., "C-") treat
       // the course as successfully completed.
+      // Using store directly since API mutations aren't implemented yet
       addCompletedCourse(courseCode, "P");
-      addCompletedCourseMutation.mutate({
-        planId: currentPlanId,
-        courseCode,
-        grade: "P",
-      });
     }
   };
 
@@ -256,6 +243,25 @@ const RequirementChecklist: React.FC<RequirementChecklistProps> = ({
                         key={courseCode}
                         courseCode={courseCode}
                         status={getCourseStatus(courseCode)}
+                        onToggleCompletion={handleToggleCompletion}
+                      />
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Courses */}
+              {(requirement.courses?.length ?? 0) > 0 && (
+                <div className="mb-4">
+                  <h4 className="font-medium text-sm text-gray-500 mb-2">
+                    Applicable Courses:
+                  </h4>
+                  <div className="space-y-2">
+                    {(requirement.courses ?? []).map((course) => (
+                      <CourseItem
+                        key={course.code}
+                        courseCode={course.code}
+                        status={getCourseStatus(course.code)}
                         onToggleCompletion={handleToggleCompletion}
                       />
                     ))}

@@ -17,6 +17,7 @@ import {
   TooltipTrigger,
   TooltipContent,
 } from "@/components/ui/tooltip";
+import { calculateTotalUnits, formatUnits } from "@/lib/types";
 
 interface QuarterColumnProps {
   quarter: Quarter;
@@ -38,7 +39,8 @@ export function QuarterColumn({
   // Map course code to full course details for quick lookup
   const courseMap = useMemo(() => {
     const map: Record<string, Partial<Course>> = {};
-    allCourses.forEach((c) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    allCourses.forEach((c: any) => {
       if (c.code) {
         map[c.code] = c;
       }
@@ -54,15 +56,21 @@ export function QuarterColumn({
         ...course,
         code: course.code ?? catalog.code ?? course.courseCode,
         title: course.title ?? catalog.title,
-        units: course.units ?? catalog.units,
-      } as PlannedCourse;
+        units: catalog.units ?? undefined, // Always use catalog units
+      };
     });
   }, [quarter.courses, courseMap]);
 
-  const totalUnits = enrichedCourses.reduce(
-    (sum, course) => sum + (course.units ?? 0),
-    0
-  );
+  // Calculate total units using the new utility function
+  const totalUnits = useMemo(() => {
+    return calculateTotalUnits(enrichedCourses);
+  }, [enrichedCourses]);
+
+  // Format units for display
+  const totalUnitsDisplay = useMemo(() => {
+    const units = totalUnits.toString();
+    return formatUnits(units);
+  }, [totalUnits]);
 
   // determine if over-unit warning exists from validation report
   const overUnit = report?.messages.some(
@@ -78,7 +86,8 @@ export function QuarterColumn({
     const courseData = e.dataTransfer.getData("text/plain");
     if (courseData && onDropCourse) {
       const course = JSON.parse(courseData) as PlannedCourse;
-      onDropCourse(course, quarter.id);
+      const quarterId = `${quarter.season}-${quarter.year}`;
+      onDropCourse(course, quarterId);
     }
   };
 
@@ -102,7 +111,7 @@ export function QuarterColumn({
                   )}
                 >
                   {overUnit && <AlertCircle className="w-4 h-4" />}
-                  {totalUnits} units
+                  {totalUnitsDisplay}
                 </span>
               </TooltipTrigger>
               {overUnit && (
@@ -120,10 +129,15 @@ export function QuarterColumn({
         onDrop={handleDrop}
       >
         {enrichedCourses.map((course, index) => {
-          const key =
-            course.id ??
-            `${course.courseCode ?? course.code ?? "unknown"}-${index}`;
-          return <CourseCard key={key} course={course} report={report} />;
+          const key = `${course.courseCode ?? course.code ?? "unknown"}-${index}`;
+          return (
+            <CourseCard
+              key={key}
+              course={course}
+              quarter={quarter}
+              report={report}
+            />
+          );
         })}
         {enrichedCourses.length === 0 && (
           <div className="flex items-center justify-center h-32 border-2 border-dashed border-muted-foreground/25 rounded-lg">
@@ -134,7 +148,10 @@ export function QuarterColumn({
           variant="ghost"
           size="sm"
           className="w-full mt-2 text-muted-foreground hover:text-scu-cardinal"
-          onClick={() => onAddCourse?.(quarter.id)}
+          onClick={() => {
+            const quarterId = `${quarter.season}-${quarter.year}`;
+            onAddCourse?.(quarterId);
+          }}
         >
           <Plus className="w-4 h-4 mr-2" />
           Add Course

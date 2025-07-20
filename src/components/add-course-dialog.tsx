@@ -14,10 +14,7 @@ import {
   CommandEmpty,
   CommandItem,
 } from "@/components/ui/command";
-import {
-  useSearchCoursesQuery,
-  useCoursesQuery,
-} from "@/hooks/api/useCoursesQuery";
+import { useCoursesQuery } from "@/hooks/api/useCoursesQuery";
 import { useDebounce } from "use-debounce";
 import type { Course } from "@/lib/types";
 import { usePlannerStore } from "@/hooks/usePlannerStore";
@@ -49,8 +46,9 @@ export function AddCourseDialog({
   // Catalog search (remote) – only when at least 2 characters
   // ------------------------------------------------------------
 
-  const { data: rawResults = [], isLoading: isSearching } =
-    useSearchCoursesQuery(debouncedSearch.length >= 2 ? debouncedSearch : null);
+  const { data: rawResults = [], isLoading: isSearching } = useCoursesQuery(
+    debouncedSearch.length >= 2 ? debouncedSearch : undefined
+  );
 
   // Full catalog (cached) for default list when search box is empty / <2 chars
   const { data: catalogCourses = [], isLoading: isCatalogLoading } =

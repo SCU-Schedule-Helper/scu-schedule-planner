@@ -8,7 +8,6 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { Badge } from "@/components/ui/badge";
 import type { Requirement } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { ChevronRight, BookOpen } from "lucide-react";
@@ -42,38 +41,42 @@ export function RequirementItem({
             >
               {requirement.name}
             </h4>
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button variant="ghost" size="sm">
-                  <BookOpen className="w-4 h-4 mr-2" />
-                  Courses
-                  <ChevronRight className="w-4 h-4 ml-2" />
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-80">
-                <div className="space-y-2">
-                  <h5 className="font-medium">Required Courses</h5>
-                  <div className="space-y-1">
-                    {(
-                      requirement.courses ??
-                      requirement.coursesRequired ??
-                      []
-                    ).map((course, idx) => (
-                      <Badge
-                        key={String(idx)}
-                        variant="outline"
-                        className="mr-2"
-                      >
-                        {course}
-                      </Badge>
-                    ))}
+            {requirement.courses && requirement.courses.length > 0 && (
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="ghost" size="sm">
+                    <BookOpen className="w-4 h-4 mr-2" />
+                    Courses
+                    <ChevronRight className="w-4 h-4 ml-2" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-80">
+                  <div className="space-y-2">
+                    <h5 className="font-medium">Applicable Courses</h5>
+                    <div className="space-y-2">
+                      {requirement.courses?.map((course) => (
+                        <div key={course.id} className="p-2 border rounded-md">
+                          <div className="font-semibold">
+                            {course.code}: {course.title}
+                          </div>
+                          <div className="text-sm text-muted-foreground">
+                            {course.units} units
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                    {requirement.courses?.length === 0 && (
+                      <p className="text-sm text-muted-foreground">
+                        No specific courses listed for this requirement.
+                      </p>
+                    )}
+                    <p className="text-sm text-muted-foreground pt-2">
+                      {requirement.description}
+                    </p>
                   </div>
-                  <p className="text-sm text-muted-foreground">
-                    {requirement.description}
-                  </p>
-                </div>
-              </PopoverContent>
-            </Popover>
+                </PopoverContent>
+              </Popover>
+            )}
           </div>
           <div className="space-y-1">
             <div className="flex justify-between text-sm">

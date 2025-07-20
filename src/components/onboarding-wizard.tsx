@@ -135,7 +135,12 @@ export function OnboardingWizard({ onComplete }: OnboardingWizardProps) {
               <Select
                 onValueChange={(value) => {
                   const major = majors.find((m) => m.id === value);
-                  setSelectedMajor(major || null);
+                  // Convert Major to SimpleMajor by extracting only the required fields
+                  setSelectedMajor(major ? { 
+                    id: major.id, 
+                    name: major.name, 
+                    code: '' // Using empty string as fallback since we don't have deptCode in Major type
+                  } : null);
                 }}
               >
                 <SelectTrigger>
@@ -164,24 +169,39 @@ export function OnboardingWizard({ onComplete }: OnboardingWizardProps) {
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {emphasisAreas
-                  .filter((area) => area.majorId === selectedMajor?.id)
-                  .map((area) => (
-                    <div
-                      key={area.id}
-                      className="flex items-center space-x-2 p-3 border rounded-lg cursor-pointer hover:bg-muted/50"
-                      onClick={() => toggleEmphasisArea(area)}
-                    >
-                      <Checkbox
-                        checked={selectedEmphasisAreas.some(
-                          (a) => a.id === area.id
-                        )}
-                        onChange={() => toggleEmphasisArea(area)}
-                      />
-                      <div>
-                        <h4 className="font-medium">{area.name}</h4>
+                  .filter((area) => area.appliesTo === selectedMajor?.id)
+                  .map((area) => {
+                    // Convert Emphasis to SimpleEmphasisArea
+                    const simpleArea = {
+                      id: area.id,
+                      name: area.name,
+                      majorId: area.appliesTo || '',
+                      description: area.description
+                    };
+                    
+                    return (
+                      <div
+                        key={area.id}
+                        className="flex items-center space-x-2 p-3 border rounded-lg cursor-pointer hover:bg-muted/50"
+                        onClick={() => toggleEmphasisArea(simpleArea)}
+                      >
+                        <Checkbox
+                          checked={selectedEmphasisAreas.some(
+                            (a) => a.id === area.id
+                          )}
+                          onChange={() => toggleEmphasisArea(simpleArea)}
+                        />
+                        <div>
+                          <h4 className="font-medium">{area.name}</h4>
+                          {area.description && (
+                            <p className="text-sm text-muted-foreground">
+                              {area.description}
+                            </p>
+                          )}
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
               </div>
               {selectedEmphasisAreas.length > 0 && (
                 <div className="space-y-2">
@@ -209,7 +229,8 @@ export function OnboardingWizard({ onComplete }: OnboardingWizardProps) {
                 </CardDescription>
               </div>
               <div className="max-h-64 overflow-y-auto space-y-2">
-                {courses.map((course) => (
+                {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+                {courses.map((course: any) => (
                   <div
                     key={course.id}
                     className="flex items-center space-x-2 p-3 border rounded-lg cursor-pointer hover:bg-muted/50"

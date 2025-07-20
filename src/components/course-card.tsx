@@ -12,6 +12,7 @@ import {
   AlertTriangle,
 } from "lucide-react";
 import type { ValidationReport } from "@/lib/validation/types";
+import { formatUnits } from "@/lib/types";
 import {
   TooltipProvider,
   Tooltip,
@@ -19,8 +20,11 @@ import {
   TooltipContent,
 } from "@/components/ui/tooltip";
 
+import type { Quarter } from "@/lib/types";
+
 interface CourseCardProps {
   course: PlannedCourse;
+  quarter: Quarter;
   report?: ValidationReport | null;
   isDragging?: boolean;
   className?: string;
@@ -41,6 +45,7 @@ function getValidationSeverity(
 
 export function CourseCard({
   course,
+  quarter,
   report,
   isDragging,
   className,
@@ -89,7 +94,12 @@ export function CourseCard({
             )}
             draggable
             onDragStart={(e) => {
-              e.dataTransfer.setData("text/plain", JSON.stringify(course));
+              // Ensure the quarter format is correct for the drag operation.
+              const courseData = {
+                ...course,
+                quarter: `${quarter.season}-${quarter.year}`,
+              };
+              e.dataTransfer.setData("text/plain", JSON.stringify(courseData));
             }}
           >
             {/* Icon overlay */}
@@ -113,7 +123,9 @@ export function CourseCard({
                   </p>
                 </div>
                 <Badge variant="secondary" className="ml-2 text-xs">
-                  {course.units !== undefined ? `${course.units}u` : "—"}
+                  <div className="text-sm text-muted-foreground">
+                    {course.units ? formatUnits(course.units) : "—"}
+                  </div>
                 </Badge>
               </div>
               <div className="flex items-center justify-between">

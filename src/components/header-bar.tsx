@@ -47,13 +47,13 @@ export function HeaderBar({ title, user, actions }: HeaderBarProps) {
               <Button variant="ghost" className="relative h-8 w-8 rounded-full">
                 <Avatar className="h-8 w-8">
                   <AvatarImage
-                    src={user?.avatar || "/placeholder.svg"}
+                    src={user?.avatar_url || "/placeholder.svg"}
                     alt={user?.name ?? "User"}
                   />
                   <AvatarFallback>
                     {(user?.name ?? "U")
                       .split(" ")
-                      .map((n) => n[0])
+                      .map((n: string) => n[0])
                       .join("")}
                   </AvatarFallback>
                 </Avatar>
