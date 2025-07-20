@@ -1,17 +1,31 @@
 import { NextResponse } from 'next/server';
 import { createSupabaseServer } from '@/lib/supabase/server';
-import { RequirementsResponseSchema, ApiErrorSchema } from '@/lib/types';
+import { RequirementsResponseSchema } from '@/lib/types';
+import {
+    ApiError,
+    handleApiError,
+    logApiError,
+    validateRequiredField,
+    withErrorHandling
+} from '@/lib/errors';
 
+/**
+ * Emphasis Requirements API
+ * 
+ * Fetches requirements for a specific emphasis area with course expression parsing.
+ * Uses standardized error handling pattern for consistency across all API routes.
+ */
 export async function GET(request: Request) {
-    try {
+    return withErrorHandling(async () => {
         const { searchParams } = new URL(request.url);
         const emphasisParam = searchParams.get('emphasis');
         const emphasisId = searchParams.get('emphasisId');
 
         if (!emphasisParam && !emphasisId) {
-            return NextResponse.json(
-                ApiErrorSchema.parse({ error: 'Emphasis name or emphasisId parameter is required' }),
-                { status: 400 }
+            throw ApiError.badRequest(
+                'Emphasis name or emphasisId parameter is required',
+                'MISSING_REQUIRED_FIELD',
+                { providedParams: { emphasisParam, emphasisId } }
             );
         }
 
@@ -22,19 +36,25 @@ export async function GET(request: Request) {
         let query = supabase.from('emphasis_areas_enhanced').select('*');
 
         if (emphasisId) {
+            validateRequiredField(emphasisId, 'emphasisId');
             query = query.eq('id', emphasisId);
         } else if (emphasisParam) {
+            validateRequiredField(emphasisParam, 'emphasis');
             query = query.eq('name', emphasisParam);
         }
 
         const { data: emphasis, error } = await query.single();
 
         if (error) {
-            console.error('Error fetching emphasis requirements:', error);
-            return NextResponse.json(
-                ApiErrorSchema.parse({ error: 'Emphasis not found' }),
-                { status: 404 }
-            );
+            if (error.code === 'PGRST116') {
+                throw ApiError.notFound('Emphasis not found', 'REQUIREMENT_NOT_FOUND');
+            }
+            logApiError(ApiError.databaseError('Error fetching emphasis requirements'), { error, emphasisParam, emphasisId });
+            throw ApiError.databaseError('Failed to fetch emphasis requirements');
+        }
+
+        if (!emphasis) {
+            throw ApiError.notFound('Emphasis not found', 'REQUIREMENT_NOT_FOUND');
         }
 
         // Convert the simplified requirements to the expected format
@@ -126,14 +146,5 @@ export async function GET(request: Request) {
         }
 
         return NextResponse.json(RequirementsResponseSchema.parse(requirements));
-
-    } catch (error) {
-        console.error('Unexpected error in emphasis requirements API:', error);
-        return NextResponse.json(
-            ApiErrorSchema.parse({
-                error: error instanceof Error ? error.message : 'Unknown error occurred'
-            }),
-            { status: 500 }
-        );
-    }
+    })().catch(error => handleApiError(error, request));
 }

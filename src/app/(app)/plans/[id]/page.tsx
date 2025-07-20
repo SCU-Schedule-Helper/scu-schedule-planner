@@ -32,6 +32,19 @@ import { buildQuarter, shiftQuarter, Season } from "@/lib/quarter";
 import { PlanSettingsDialog } from "@/components/PlanSettingsDialog";
 import { usePlanValidation } from "@/hooks/usePlanValidation";
 
+/**
+ * PlanDetailPage Component
+ *
+ * Main plan editor page with drag-and-drop course management and optimistic updates.
+ * Handles quarter management, course movement, and real-time validation.
+ *
+ * Key Features:
+ * - Optimistic UI updates for immediate feedback
+ * - Server synchronization with rollback on errors
+ * - Dynamic quarter addition (previous/next)
+ * - Real-time validation integration
+ * - Settings management for plan configuration
+ */
 export default function PlanDetailPage() {
   const params = useParams();
   const planId =
@@ -44,6 +57,7 @@ export default function PlanDetailPage() {
   const { data: plan, isLoading } = usePlanQuery(planId);
 
   // Zustand store actions for optimistic updates
+  // These provide immediate UI feedback while server requests are in flight
   const {
     addPlannedCourse,
     movePlannedCourse,
@@ -51,18 +65,21 @@ export default function PlanDetailPage() {
     addPlan: addPlanToStore,
   } = usePlannerStore();
 
+  // Local state for quarters to enable optimistic updates
+  // This allows immediate UI changes while server sync happens in background
   const [quarters, setQuarters] = useState<Quarter[]>(plan?.quarters ?? []);
   const [planName] = useState(plan?.name ?? "Plan");
 
+  // API mutation hooks for server operations
   const addPlannedCourseMutation = useAddPlannedCourseMutation();
   const movePlannedCourseMutation = useMovePlannedCourseMutation();
   const updatePlanMutation = useUpdatePlanMutation();
 
-  // dialog state
+  // Dialog state management
   const [dialogOpen, setDialogOpen] = useState(false);
   const [targetQuarterId, setTargetQuarterId] = useState<string | null>(null);
 
-  // settings dialog state
+  // Settings dialog state
   const [settingsOpen, setSettingsOpen] = useState(false);
 
   // Validation report using the store-backed version of the plan so that
@@ -71,9 +88,11 @@ export default function PlanDetailPage() {
   const validationReport = usePlanValidation();
 
   // Sync local quarters state when plan data arrives or updates
+  // This ensures UI stays in sync with server data and handles plan hydration
   useEffect(() => {
     if (plan?.quarters) {
       // Ensure quarter IDs are in the correct format (Season-Year)
+      // This is important for drag-and-drop functionality and quarter identification
       const formattedQuarters = plan.quarters.map((quarter) => ({
         ...quarter,
         id: `${quarter.season}-${quarter.year}`,
@@ -83,6 +102,7 @@ export default function PlanDetailPage() {
       setQuarters(formattedQuarters);
 
       // Ensure global store stays in sync with latest server data
+      // This prevents stale data issues and maintains consistency across components
       const existingPlans = usePlannerStore.getState().plans;
       const exists = existingPlans.some((p) => p.id === plan!.id);
       if (!exists) {
@@ -97,15 +117,21 @@ export default function PlanDetailPage() {
     }
   }, [plan]);
 
+  /**
+   * Adds a new quarter to the plan (previous or next)
+   * Uses optimistic updates for immediate UI feedback with server rollback on failure
+   */
   const addQuarter = async (direction: "prev" | "next") => {
     if (!planId) return;
 
     // Reference quarter: first for prev, last for next
+    // This determines where to insert the new quarter
     const reference =
       direction === "prev" ? quarters[0] : quarters[quarters.length - 1];
 
     if (!reference) return;
 
+    // Calculate the new quarter metadata using the quarter utility functions
     const meta = shiftQuarter(
       {
         season: (reference.season as Season) ?? "Fall",
@@ -117,22 +143,26 @@ export default function PlanDetailPage() {
 
     const newQuarter = buildQuarter(meta);
 
+    // Create updated quarters array with new quarter inserted
     const updatedQuarters =
       direction === "prev"
         ? [newQuarter, ...quarters]
         : [...quarters, newQuarter];
 
     // Optimistic UI update (local state + global store)
+    // This provides immediate feedback while server request is in flight
     setQuarters(updatedQuarters);
     updatePlanStore(planId, { quarters: updatedQuarters });
 
     try {
+      // Persist changes to server
       await updatePlanMutation.mutateAsync({
         planId,
         updates: { quarters: updatedQuarters },
       });
     } catch {
       // Revert optimistic updates on failure
+      // This ensures UI stays consistent with server state
       setQuarters(quarters);
       updatePlanStore(planId, { quarters });
     }
@@ -182,7 +212,7 @@ export default function PlanDetailPage() {
                       const fromQuarterId = course.quarter;
                       if (fromQuarterId === toQuarterId) return;
 
-                      // optimistic local update
+                      // Optimistic local update for immediate UI feedback
                       movePlannedCourse(
                         course.courseCode,
                         fromQuarterId,
@@ -209,9 +239,11 @@ export default function PlanDetailPage() {
                           toYear,
                         };
 
+                        // Persist changes to server
                         await movePlannedCourseMutation.mutateAsync(payload);
                       } catch {
                         // Revert optimistic update on failure
+                        // This ensures UI stays consistent with server state
                         movePlannedCourse(
                           course.courseCode,
                           toQuarterId,

@@ -1,6 +1,19 @@
 import { NextResponse } from 'next/server';
 import { createSupabaseServer } from '@/lib/supabase/server';
-import { ApiErrorSchema, CourseSchema } from '@/lib/types';
+import { CourseSchema } from '@/lib/types';
+import {
+    ApiError,
+    handleApiError,
+    logApiError,
+    withErrorHandling
+} from '@/lib/errors';
+
+/**
+ * University Requirements API
+ * 
+ * Fetches university core curriculum requirements and pathways with course validation.
+ * Uses standardized error handling pattern for consistency across all API routes.
+ */
 
 // Helper to parse course expressions that are JSON arrays of strings
 function parseCourseExpression(expression: string): string[] {
@@ -19,7 +32,7 @@ function parseCourseExpression(expression: string): string[] {
 }
 
 export async function GET() {
-    try {
+    return withErrorHandling(async () => {
         const supabase = await createSupabaseServer();
 
         // Fetch all courses to use for matching
@@ -28,11 +41,8 @@ export async function GET() {
             .select('*');
 
         if (coursesError) {
-            console.error('Error fetching courses:', coursesError);
-            return NextResponse.json(
-                ApiErrorSchema.parse({ error: coursesError.message }),
-                { status: 500 }
-            );
+            logApiError(ApiError.databaseError('Error fetching courses'), { error: coursesError });
+            throw ApiError.databaseError('Failed to fetch courses');
         }
 
         // Fetch core curriculum requirements from the new schema
@@ -42,11 +52,8 @@ export async function GET() {
             .order('name');
 
         if (error) {
-            console.error('Error fetching core curriculum requirements:', error);
-            return NextResponse.json(
-                ApiErrorSchema.parse({ error: error.message }),
-                { status: 500 }
-            );
+            logApiError(ApiError.databaseError('Error fetching core curriculum requirements'), { error });
+            throw ApiError.databaseError('Failed to fetch core curriculum requirements');
         }
 
         // Fetch core curriculum pathways
@@ -56,13 +63,9 @@ export async function GET() {
             .order('name');
 
         if (pathwaysError) {
-            console.error('Error fetching core curriculum pathways:', pathwaysError);
-            return NextResponse.json(
-                ApiErrorSchema.parse({ error: pathwaysError.message }),
-                { status: 500 }
-            );
+            logApiError(ApiError.databaseError('Error fetching core curriculum pathways'), { error: pathwaysError });
+            throw ApiError.databaseError('Failed to fetch core curriculum pathways');
         }
-
 
         const formattedCoreRequirements = coreRequirements.map(req => {
             const courseCodes = parseCourseExpression(req.fulfilled_by || '');
@@ -139,14 +142,5 @@ export async function GET() {
         };
 
         return NextResponse.json(responseData);
-
-    } catch (error) {
-        console.error('Unexpected error in university requirements API:', error);
-        return NextResponse.json(
-            ApiErrorSchema.parse({
-                error: error instanceof Error ? error.message : 'Unknown error occurred'
-            }),
-            { status: 500 }
-        );
-    }
+    })().catch(error => handleApiError(error));
 }

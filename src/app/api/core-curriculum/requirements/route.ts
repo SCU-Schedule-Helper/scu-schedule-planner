@@ -1,9 +1,21 @@
 import { NextResponse } from 'next/server';
 import { createSupabaseServer } from '@/lib/supabase/server';
-import { CoreCurriculumRequirementsResponseSchema, ApiErrorSchema } from '@/lib/types';
+import { CoreCurriculumRequirementsResponseSchema } from '@/lib/types';
+import {
+    ApiError,
+    handleApiError,
+    logApiError,
+    withErrorHandling
+} from '@/lib/errors';
 
+/**
+ * Core Curriculum Requirements API
+ * 
+ * Fetches core curriculum requirements with optional filtering by school/program.
+ * Uses standardized error handling pattern for consistency across all API routes.
+ */
 export async function GET(request: Request) {
-    try {
+    return withErrorHandling(async () => {
         const { searchParams } = new URL(request.url);
         const appliesTo = searchParams.get('appliesTo');
 
@@ -22,11 +34,8 @@ export async function GET(request: Request) {
         const { data: requirements, error } = await query;
 
         if (error) {
-            console.error('Error fetching core curriculum requirements:', error);
-            return NextResponse.json(
-                ApiErrorSchema.parse({ error: error.message }),
-                { status: 500 }
-            );
+            logApiError(ApiError.databaseError('Error fetching core curriculum requirements'), { error, appliesTo });
+            throw ApiError.databaseError('Failed to fetch core curriculum requirements');
         }
 
         // Transform database response to match our schema
@@ -44,11 +53,5 @@ export async function GET(request: Request) {
         return NextResponse.json(
             CoreCurriculumRequirementsResponseSchema.parse(formattedRequirements)
         );
-    } catch (error) {
-        console.error('Unexpected error in core curriculum requirements API:', error);
-        return NextResponse.json(
-            ApiErrorSchema.parse({ error: 'Internal server error' }),
-            { status: 500 }
-        );
-    }
+    })().catch(error => handleApiError(error, request));
 } 

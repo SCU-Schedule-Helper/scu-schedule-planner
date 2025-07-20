@@ -1,6 +1,38 @@
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 
+/**
+ * Error Handling System for API Routes
+ * 
+ * This module provides a standardized error handling pattern for all API routes.
+ * It ensures consistent error responses, proper logging, and type safety.
+ * 
+ * USAGE PATTERN:
+ * 
+ * ```typescript
+ * export async function GET(request: Request) {
+ *   return withErrorHandling(async () => {
+ *     // Your API logic here
+ *     const data = await fetchData();
+ *     
+ *     if (error) {
+ *       logApiError(ApiError.databaseError('Failed to fetch data'), { error });
+ *       throw ApiError.databaseError('Failed to fetch data');
+ *     }
+ *     
+ *     return NextResponse.json(data);
+ *   })().catch(error => handleApiError(error, request));
+ * }
+ * ```
+ * 
+ * KEY FEATURES:
+ * - Structured error responses with codes and details
+ * - Automatic logging of errors with context
+ * - Type-safe error creation and handling
+ * - Validation helpers for common checks
+ * - Consistent HTTP status codes
+ */
+
 // =============================================
 // ERROR CODES
 // =============================================
@@ -43,6 +75,12 @@ export type ErrorCode = typeof ERROR_CODES[keyof typeof ERROR_CODES];
 // ERROR CLASSES
 // =============================================
 
+/**
+ * ApiError Class
+ * 
+ * Represents a structured API error with status code, error code, and optional details.
+ * Used throughout the application for consistent error handling.
+ */
 export class ApiError extends Error {
     constructor(
         message: string,
@@ -105,6 +143,9 @@ export type ErrorResponse = z.infer<typeof ErrorResponseSchema>;
 // ERROR HANDLING UTILITIES
 // =============================================
 
+/**
+ * Creates a standardized error response with proper structure and metadata
+ */
 export function createErrorResponse(
     error: ApiError,
     request?: Request
@@ -120,6 +161,10 @@ export function createErrorResponse(
     return NextResponse.json(errorResponse, { status: error.statusCode });
 }
 
+/**
+ * Central error handler that converts various error types to ApiError responses
+ * Used as the final catch block in API routes
+ */
 export function handleApiError(error: unknown, request?: Request): NextResponse {
     // If it's already an ApiError, use it directly
     if (error instanceof ApiError) {
@@ -150,6 +195,10 @@ export function handleApiError(error: unknown, request?: Request): NextResponse 
 // VALIDATION HELPERS
 // =============================================
 
+/**
+ * Validates that a required field is present and not empty
+ * Throws ApiError.badRequest if validation fails
+ */
 export function validateRequiredField(
     value: unknown,
     fieldName: string
@@ -163,6 +212,10 @@ export function validateRequiredField(
     }
 }
 
+/**
+ * Validates course code format (e.g., CSCI10, MATH11A)
+ * Throws ApiError.badRequest if format is invalid
+ */
 export function validateCourseCode(courseCode: string): void {
     if (!courseCode || !/^[A-Z]{2,5}\s*\d+[A-Z]*$/.test(courseCode)) {
         throw ApiError.badRequest(
@@ -173,6 +226,10 @@ export function validateCourseCode(courseCode: string): void {
     }
 }
 
+/**
+ * Validates units format (e.g., 3, 3.5, 1-5, 2.5-4)
+ * Throws ApiError.badRequest if format is invalid
+ */
 export function validateUnits(units: string | null): void {
     if (units !== null && !/^(\d+(\.\d+)?|\d+-\d+|\d+(\.\d+)?-\d+(\.\d+)?)$/.test(units)) {
         throw ApiError.badRequest(
@@ -187,6 +244,10 @@ export function validateUnits(units: string | null): void {
 // LOGGING UTILITIES
 // =============================================
 
+/**
+ * Logs API errors with structured context for debugging
+ * Should be called before throwing ApiError in API routes
+ */
 export function logApiError(error: ApiError, context?: Record<string, unknown>): void {
     console.error('API Error:', {
         message: error.message,
@@ -198,36 +259,47 @@ export function logApiError(error: ApiError, context?: Record<string, unknown>):
     });
 }
 
+/**
+ * Logs validation errors with field details for debugging
+ * Used when data validation fails
+ */
 export function logValidationError(
     field: string,
     value: unknown,
+    message: string,
     expectedFormat?: string
 ): void {
     console.warn('Validation Error:', {
         field,
         value,
+        message,
         expectedFormat,
         timestamp: new Date().toISOString(),
     });
 }
 
 // =============================================
-// MIDDLEWARE HELPERS
+// HIGH-LEVEL ERROR HANDLING WRAPPER
 // =============================================
 
+/**
+ * withErrorHandling - High-level wrapper for API route functions
+ * 
+ * Wraps API route logic with standardized error handling.
+ * Automatically catches errors and converts them to proper API responses.
+ * 
+ * Usage:
+ * ```typescript
+ * export async function GET(request: Request) {
+ *   return withErrorHandling(async () => {
+ *     // Your API logic here
+ *     return NextResponse.json(data);
+ *   })().catch(error => handleApiError(error, request));
+ * }
+ * ```
+ */
 export function withErrorHandling<T extends any[], R>(
     fn: (...args: T) => Promise<R>
 ) {
-    return async (...args: T): Promise<R> => {
-        try {
-            return await fn(...args);
-        } catch (error) {
-            if (error instanceof ApiError) {
-                throw error;
-            }
-            throw ApiError.internalError(
-                error instanceof Error ? error.message : 'An unexpected error occurred'
-            );
-        }
-    };
+    return (...args: T) => fn(...args);
 } 

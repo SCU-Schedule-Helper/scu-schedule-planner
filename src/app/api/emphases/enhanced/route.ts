@@ -1,9 +1,20 @@
 import { NextResponse } from 'next/server';
 import { createSupabaseServer } from '@/lib/supabase/server';
-import { ApiErrorSchema } from '@/lib/types';
+import {
+    ApiError,
+    handleApiError,
+    logApiError,
+    withErrorHandling
+} from '@/lib/errors';
 
+/**
+ * Enhanced Emphasis Areas API
+ * 
+ * Fetches all emphasis areas with enhanced schema including detailed requirements and metadata.
+ * Uses standardized error handling pattern for consistency across all API routes.
+ */
 export async function GET() {
-    try {
+    return withErrorHandling(async () => {
         const supabase = await createSupabaseServer();
 
         // Fetch all emphasis areas with the new schema
@@ -13,11 +24,8 @@ export async function GET() {
             .order('name');
 
         if (error) {
-            console.error('Error fetching enhanced emphases:', error);
-            return NextResponse.json(
-                ApiErrorSchema.parse({ error: error.message }),
-                { status: 500 }
-            );
+            logApiError(ApiError.databaseError('Error fetching enhanced emphases'), { error });
+            throw ApiError.databaseError('Failed to fetch enhanced emphases');
         }
 
         // Format response for the enhanced emphases
@@ -34,14 +42,5 @@ export async function GET() {
         }));
 
         return NextResponse.json(enhancedEmphases);
-
-    } catch (error) {
-        console.error('Unexpected error in enhanced emphases API:', error);
-        return NextResponse.json(
-            ApiErrorSchema.parse({
-                error: error instanceof Error ? error.message : 'Unknown error occurred'
-            }),
-            { status: 500 }
-        );
-    }
+    })().catch(error => handleApiError(error));
 } 

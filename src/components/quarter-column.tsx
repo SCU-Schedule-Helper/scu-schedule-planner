@@ -27,6 +27,19 @@ interface QuarterColumnProps {
   className?: string;
 }
 
+/**
+ * QuarterColumn Component
+ *
+ * Renders a single quarter column in the academic planner with drag-and-drop functionality.
+ * Handles course enrichment, unit calculations, and validation display.
+ *
+ * Key Features:
+ * - Drag-and-drop course placement
+ * - Course enrichment with catalog data (title, units, etc.)
+ * - Unit load calculation and display
+ * - Validation warning integration
+ * - Add course button for manual course selection
+ */
 export function QuarterColumn({
   quarter,
   report,
@@ -36,7 +49,8 @@ export function QuarterColumn({
 }: QuarterColumnProps) {
   const { data: allCourses = [] } = useCoursesQuery();
 
-  // Map course code to full course details for quick lookup
+  // Create a lookup map for quick course details access
+  // This optimizes course enrichment by avoiding repeated array searches
   const courseMap = useMemo(() => {
     const map: Record<string, Partial<Course>> = {};
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -48,7 +62,9 @@ export function QuarterColumn({
     return map;
   }, [allCourses]);
 
-  // Enrich the quarter courses with catalog details (title, units, etc.)
+  // Enrich planned courses with catalog data (title, units, etc.)
+  // This ensures we display complete course information even if the planned course
+  // only contains basic data like courseCode and status
   const enrichedCourses = useMemo(() => {
     return quarter.courses.map((course) => {
       const catalog = courseMap[course.courseCode] || {};
@@ -56,31 +72,36 @@ export function QuarterColumn({
         ...course,
         code: course.code ?? catalog.code ?? course.courseCode,
         title: course.title ?? catalog.title,
-        units: catalog.units ?? undefined, // Always use catalog units
+        units: catalog.units ?? undefined, // Always prefer catalog units for accuracy
       };
     });
   }, [quarter.courses, courseMap]);
 
-  // Calculate total units using the new utility function
+  // Calculate total units for this quarter using the utility function
+  // This handles various unit formats (e.g., "3", "3-5", "Variable")
   const totalUnits = useMemo(() => {
     return calculateTotalUnits(enrichedCourses);
   }, [enrichedCourses]);
 
-  // Format units for display
+  // Format units for display (e.g., "3u", "3-5u", "Variable")
   const totalUnitsDisplay = useMemo(() => {
     const units = totalUnits.toString();
     return formatUnits(units);
   }, [totalUnits]);
 
-  // determine if over-unit warning exists from validation report
+  // Check if this quarter exceeds unit load limits based on validation report
+  // Shows warning icon and red styling when over the limit
   const overUnit = report?.messages.some(
     (m) => m.code === "OVER_UNIT_LOAD" && m.context?.quarter === quarter.name
   );
 
+  // Handle drag over event to enable drop zone
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
   };
 
+  // Handle course drop from other quarters or catalog
+  // Extracts course data from drag event and calls the parent handler
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     const courseData = e.dataTransfer.getData("text/plain");
