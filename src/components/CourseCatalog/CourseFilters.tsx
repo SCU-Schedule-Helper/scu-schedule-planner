@@ -26,9 +26,12 @@ const CourseFilters: React.FC<CourseFiltersProps> = ({
     if (!courses) return [];
 
     const deptSet = new Set<string>();
-    courses.forEach((course) => {
-      if (course.department) {
-        deptSet.add(course.department);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    courses.forEach((course: any) => {
+      // Extract department from course code (first letters before numbers)
+      const deptMatch = course.code.match(/^([A-Z]+)/);
+      if (deptMatch) {
+        deptSet.add(deptMatch[1]);
       }
     });
 
@@ -38,21 +41,26 @@ const CourseFilters: React.FC<CourseFiltersProps> = ({
   const handleDepartmentChange = (value: string) => {
     onFilterChange({
       ...filters,
-      department: value || undefined,
+      department: value === "all" ? undefined : value,
     });
   };
 
   const handleDivisionChange = (value: string) => {
     onFilterChange({
       ...filters,
-      isUpperDivision: value === "" ? undefined : value === "true",
+      isUpperDivision: value === "all" ? undefined : value === "true",
     });
   };
 
   const handleQuarterChange = (value: string) => {
     onFilterChange({
       ...filters,
-      quarter: value || undefined,
+      quarter: (value === "any" ? undefined : value) as
+        | "Fall"
+        | "Winter"
+        | "Spring"
+        | "Summer"
+        | undefined,
     });
   };
 
@@ -71,14 +79,14 @@ const CourseFilters: React.FC<CourseFiltersProps> = ({
       <div className="mb-3">
         <label className="block text-sm mb-1">Department</label>
         <Select
-          value={filters.department || ""}
+          value={filters.department || "all"}
           onValueChange={handleDepartmentChange}
         >
           <SelectTrigger>
             <SelectValue placeholder="All Departments" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="">All Departments</SelectItem>
+            <SelectItem key="all-depts" value="all">All Departments</SelectItem>
             {departments.map((dept) => (
               <SelectItem key={dept} value={dept}>
                 {dept}
@@ -93,7 +101,7 @@ const CourseFilters: React.FC<CourseFiltersProps> = ({
         <Select
           value={
             filters.isUpperDivision === undefined
-              ? ""
+              ? "all"
               : String(filters.isUpperDivision)
           }
           onValueChange={handleDivisionChange}
@@ -102,9 +110,9 @@ const CourseFilters: React.FC<CourseFiltersProps> = ({
             <SelectValue placeholder="All Levels" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="">All Levels</SelectItem>
-            <SelectItem value="false">Lower Division</SelectItem>
-            <SelectItem value="true">Upper Division</SelectItem>
+            <SelectItem key="all-levels" value="all">All Levels</SelectItem>
+            <SelectItem key="lower" value="false">Lower Division</SelectItem>
+            <SelectItem key="upper" value="true">Upper Division</SelectItem>
           </SelectContent>
         </Select>
       </div>
@@ -112,18 +120,18 @@ const CourseFilters: React.FC<CourseFiltersProps> = ({
       <div className="mb-3">
         <label className="block text-sm mb-1">Quarter Offered</label>
         <Select
-          value={filters.quarter || ""}
+          value={filters.quarter || "any"}
           onValueChange={handleQuarterChange}
         >
           <SelectTrigger>
             <SelectValue placeholder="Any Quarter" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="">Any Quarter</SelectItem>
-            <SelectItem value="Fall">Fall</SelectItem>
-            <SelectItem value="Winter">Winter</SelectItem>
-            <SelectItem value="Spring">Spring</SelectItem>
-            <SelectItem value="Summer">Summer</SelectItem>
+            <SelectItem key="any-quarter" value="any">Any Quarter</SelectItem>
+            <SelectItem key="fall" value="Fall">Fall</SelectItem>
+            <SelectItem key="winter" value="Winter">Winter</SelectItem>
+            <SelectItem key="spring" value="Spring">Spring</SelectItem>
+            <SelectItem key="summer" value="Summer">Summer</SelectItem>
           </SelectContent>
         </Select>
       </div>

@@ -1,8 +1,11 @@
-import { useCourseQuery, useCoursesQuery } from "@/hooks/api/useCoursesQuery";
+import { useCourseQuery } from "@/hooks/api/useCoursesQuery";
 import { useAddPlannedCourseMutation } from "@/hooks/api/usePlanQuery";
 import { usePlannerStore } from "@/hooks/usePlannerStore";
-import PrerequisiteGraph from "@/components/CourseCatalog/PrerequisiteGraph";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { formatUnits } from "@/lib/types";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { AlertCircle } from "lucide-react";
 
 interface CourseDetailProps {
   courseCode: string;
@@ -11,8 +14,8 @@ interface CourseDetailProps {
 
 const CourseDetail: React.FC<CourseDetailProps> = ({ courseCode, onClose }) => {
   const { currentPlanId, plans } = usePlannerStore();
-  const { data: course, isLoading } = useCourseQuery(courseCode);
-  const { data: catalog = [] } = useCoursesQuery();
+  const { data: course, isLoading, error } = useCourseQuery(courseCode);
+
   const addPlannedMutation = useAddPlannedCourseMutation();
 
   const currentPlan = currentPlanId
@@ -27,6 +30,7 @@ const CourseDetail: React.FC<CourseDetailProps> = ({ courseCode, onClose }) => {
         planId: currentPlanId,
         courseCode,
         quarter,
+        year: new Date().getFullYear(),
       });
     } catch (error) {
       console.error("Error adding course to plan:", error);
@@ -41,6 +45,24 @@ const CourseDetail: React.FC<CourseDetailProps> = ({ courseCode, onClose }) => {
           <div className="h-4 bg-gray-200 rounded w-1/2"></div>
           <div className="h-24 bg-gray-200 rounded"></div>
         </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="p-4 border rounded-lg">
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription>
+            {error instanceof Error
+              ? error.message
+              : "Failed to load course details"}
+          </AlertDescription>
+        </Alert>
+        <Button onClick={onClose} variant="outline" className="mt-4">
+          Back to list
+        </Button>
       </div>
     );
   }
@@ -63,8 +85,7 @@ const CourseDetail: React.FC<CourseDetailProps> = ({ courseCode, onClose }) => {
           <h3 className="text-xl font-bold">{course.code}</h3>
           <h4 className="text-lg">{course.title}</h4>
           <div className="text-sm text-gray-600">
-            {course.units} {course.units === 1 ? "unit" : "units"} •{" "}
-            {course.department}
+            {course.units ? formatUnits(course.units) : "Variable units"}
           </div>
         </div>
 
@@ -80,71 +101,116 @@ const CourseDetail: React.FC<CourseDetailProps> = ({ courseCode, onClose }) => {
         </div>
       )}
 
-      {course.prerequisites && course.prerequisites.length > 0 && (
+      {course.prerequisites && (
         <div className="mb-4">
           <h4 className="font-semibold mb-1">Prerequisites</h4>
-          <ul className="list-disc list-inside text-gray-700">
-            {course.prerequisites.map((prereq, idx) => {
-              const courseCodes = prereq.courses ?? [];
+          <div className="flex flex-wrap gap-2">
+            {(() => {
+              try {
+                // Prerequisites are now JSONB arrays
+                const prereqs = Array.isArray(course.prerequisites)
+                  ? course.prerequisites
+                  : JSON.parse(course.prerequisites);
 
-              // build alias -> group mapping using catalog crossListedAs
-              const aliasToGroup: Record<string, string[]> = {};
-              catalog.forEach((c) => {
-                if (c.crossListedAs && c.crossListedAs.length > 0) {
-                  const group = [c.code!, ...c.crossListedAs];
-                  group.forEach((alias) => (aliasToGroup[alias] = group));
-                }
-              });
+                return prereqs.map((prereq: unknown, index: number) => {
+                  // Handle different prereq formats
+                  let displayText = "";
+                  if (typeof prereq === "string") {
+                    displayText = prereq;
+                  } else if (
+                    prereq &&
+                    typeof prereq === "object" &&
+                    "courses" in prereq
+                  ) {
+                    const courses = (prereq as { courses?: string[] }).courses;
+                    displayText =
+                      courses?.join(" & ") || JSON.stringify(prereq);
+                  } else {
+                    displayText = JSON.stringify(prereq);
+                  }
 
-              // helper to choose canonical alias (prefer CSCI)
-              const chooseCanonical = (aliases: string[]): string => {
-                const csci = aliases.find((a) => a.startsWith("CSCI"));
-                return csci ?? aliases[0];
-              };
-
-              const seen = new Set<string>();
-              const parts: string[] = [];
-              courseCodes.forEach((code: string) => {
-                const group = aliasToGroup[code] ?? [code];
-                const canonical = chooseCanonical(group);
-                if (!seen.has(canonical)) {
-                  parts.push(group.join("/"));
-                  seen.add(canonical);
-                }
-              });
-
-              return (
-                <li key={idx}>
-                  {prereq.type === "or" ? "One of: " : "Required: "}
-                  {parts.join(", ")}
-                  {prereq.grade && ` (minimum grade: ${prereq.grade})`}
-                </li>
-              );
-            })}
-          </ul>
-
-          <div className="mt-4">
-            <PrerequisiteGraph courseCode={courseCode} />
+                  return (
+                    <Badge key={index} variant="secondary">
+                      {displayText}
+                    </Badge>
+                  );
+                });
+              } catch (error) {
+                console.warn("Error parsing prerequisites:", error);
+                return [];
+              }
+            })()}
           </div>
         </div>
       )}
 
-      {course.corequisites && course.corequisites.length > 0 && (
+      {course.corequisites && (
         <div className="mb-4">
           <h4 className="font-semibold mb-1">Corequisites</h4>
-          <ul className="list-disc list-inside text-gray-700">
-            {course.corequisites.map((coreq, idx) => (
-              <li key={idx}>{coreq}</li>
-            ))}
-          </ul>
+          <div className="flex flex-wrap gap-2">
+            {(() => {
+              try {
+                // Corequisites are now JSONB arrays
+                const coreqs = Array.isArray(course.corequisites)
+                  ? course.corequisites
+                  : JSON.parse(course.corequisites);
+
+                return coreqs.map((coreq: unknown, index: number) => {
+                  let displayText = "";
+                  if (typeof coreq === "string") {
+                    displayText = coreq;
+                  } else if (
+                    coreq &&
+                    typeof coreq === "object" &&
+                    "courses" in coreq
+                  ) {
+                    const courses = (coreq as { courses?: string[] }).courses;
+                    displayText = courses?.join(" & ") || JSON.stringify(coreq);
+                  } else {
+                    displayText = JSON.stringify(coreq);
+                  }
+
+                  return (
+                    <Badge key={index} variant="secondary">
+                      {displayText}
+                    </Badge>
+                  );
+                });
+              } catch (error) {
+                console.warn("Error parsing corequisites:", error);
+                return [];
+              }
+            })()}
+          </div>
         </div>
       )}
 
-      {course.offeredQuarters && course.offeredQuarters.length > 0 && (
+      {course.professor && (
         <div className="mb-4">
-          <h4 className="font-semibold mb-1">Offered In</h4>
+          <h4 className="font-semibold mb-1">Professors</h4>
+          <p className="text-gray-700">{course.professor}</p>
+        </div>
+      )}
+
+      {course.quarters_offered && (
+        <div className="mb-4">
+          <h4 className="font-semibold mb-1">When Offered</h4>
           <div className="text-gray-700">
-            {course.offeredQuarters.join(", ")}
+            {(() => {
+              try {
+                // Quarters offered are now JSONB arrays
+                const schedule = Array.isArray(course.quarters_offered)
+                  ? course.quarters_offered
+                  : JSON.parse(course.quarters_offered);
+
+                if (Array.isArray(schedule)) {
+                  return schedule.join(", ");
+                }
+                return String(course.quarters_offered);
+              } catch {
+                return String(course.quarters_offered);
+              }
+            })()}
           </div>
         </div>
       )}
@@ -153,24 +219,18 @@ const CourseDetail: React.FC<CourseDetailProps> = ({ courseCode, onClose }) => {
         <div className="mt-6">
           <h4 className="font-semibold mb-2">Add to Plan</h4>
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
-            {currentPlan.quarters.slice(0, 8).map((quarter) => (
+            {["Fall", "Winter", "Spring", "Summer"].map((quarter) => (
               <Button
-                key={quarter.id}
-                onClick={() => handleAddToPlan(quarter.id)}
-                disabled={addPlannedMutation.isPending}
+                key={quarter}
+                onClick={() => handleAddToPlan(quarter)}
                 variant="outline"
                 size="sm"
-                className="px-2 py-1 text-sm"
+                disabled={addPlannedMutation.isPending}
               >
-                {quarter.name}
+                {quarter}
               </Button>
             ))}
           </div>
-          {currentPlan.quarters.length > 8 && (
-            <div className="mt-2 text-sm text-gray-500">
-              + {currentPlan.quarters.length - 8} more quarters
-            </div>
-          )}
         </div>
       )}
     </div>

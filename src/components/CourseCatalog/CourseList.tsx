@@ -1,4 +1,6 @@
-import { Course } from "@/lib/types";
+import React from "react";
+import type { Course } from "@/lib/types";
+import { formatUnits } from "@/lib/types";
 
 interface CourseListProps {
   courses: Course[];
@@ -48,7 +50,9 @@ const CourseList: React.FC<CourseListProps> = ({
           >
             <div className="px-2 font-medium">{course.code}</div>
             <div className="px-2">{course.title}</div>
-            <div className="px-2 text-right">{course.units}</div>
+            <div className="px-2 text-right">
+              {course.units ? formatUnits(String(course.units)) : "—"}
+            </div>
           </div>
         ))}
       </div>
