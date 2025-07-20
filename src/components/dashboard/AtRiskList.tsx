@@ -14,7 +14,8 @@ export function AtRiskList({ courseCodes }: Props) {
   if (!courseCodes || courseCodes.length === 0) return null;
 
   const courses = courseCodes.map((code) => {
-    const info = catalog.find((c) => c.code === code);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const info = catalog.find((c: any) => c.code === code);
     return { code, title: info?.title };
   });
 

@@ -1,93 +1,140 @@
-import { useQuery, useQueryClient } from '@tanstack/react-query';
-import axios from 'axios';
-import {
-    type CourseFilter,
-    type CourseResponse,
-    type CoursesResponse,
-    CourseFilterSchema,
-    CourseSearchSchema
-} from '@/lib/types';
+import { useQuery } from '@tanstack/react-query';
+import { Course, CoursesResponse } from '@/lib/types';
 
-// API client
-const api = axios.create({
-    baseURL: '/api',
-});
+// =============================================
+// COURSES QUERY
+// =============================================
 
-// Fetch all courses
-export const useCoursesQuery = () => {
-    return useQuery<CoursesResponse>({
-        queryKey: ['courses'],
-        queryFn: async () => {
-            const { data } = await api.get<CoursesResponse>('/courses');
-            return data;
-        }
-    });
-};
+export function useCoursesQuery(search?: string, department?: string, quarters?: string) {
+    return useQuery({
+        queryKey: ['courses', { search, department, quarters }],
+        queryFn: async (): Promise<CoursesResponse> => {
+            const params = new URLSearchParams();
+            if (search) params.append('search', search);
+            if (department) params.append('department', department);
+            if (quarters) params.append('quarters', quarters);
 
-// Fetch a single course by code
-export const useCourseQuery = (courseCode: string) => {
-    const queryClient = useQueryClient();
+            const response = await fetch(`/api/courses?${params.toString()}`);
 
-    return useQuery<CourseResponse>({
-        queryKey: ['courses', courseCode],
-        // Primary source: look up course in already-fetched catalog
-        queryFn: async () => {
-            // Attempt cache lookup first
-            const allCourses = queryClient.getQueryData<CoursesResponse>(['courses']);
-            const cached = allCourses?.find((c) => c.code === courseCode);
-            if (cached) {
-                return cached;
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
             }
-            // Fallback: fetch just this one course
-            const { data } = await api.get<CourseResponse>(`/courses/${courseCode}`);
-            return data;
+
+            return response.json();
+        },
+        staleTime: 5 * 60 * 1000, // 5 minutes
+        gcTime: 10 * 60 * 1000, // 10 minutes
+    });
+}
+
+// =============================================
+// COURSE SEARCH QUERY
+// =============================================
+
+export function useCourseSearchQuery(query: string) {
+    return useQuery({
+        queryKey: ['courseSearch', query],
+        queryFn: async (): Promise<CoursesResponse> => {
+            if (!query || query.length < 2) {
+                return [];
+            }
+
+            const response = await fetch(`/api/courses/search?q=${encodeURIComponent(query)}`);
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+            }
+
+            return response.json();
+        },
+        enabled: query.length >= 2,
+        staleTime: 5 * 60 * 1000, // 5 minutes
+        gcTime: 10 * 60 * 1000, // 10 minutes
+    });
+}
+
+// =============================================
+// COURSE FILTER QUERY
+// =============================================
+
+export function useCourseFilterQuery(filters: {
+    department?: string;
+    quarter?: string;
+    units?: string;
+    level?: string;
+}) {
+    return useQuery({
+        queryKey: ['courseFilter', filters],
+        queryFn: async (): Promise<CoursesResponse> => {
+            const params = new URLSearchParams();
+            if (filters.department) params.append('department', filters.department);
+            if (filters.quarter) params.append('quarter', filters.quarter);
+            if (filters.units) params.append('units', filters.units);
+            if (filters.level) params.append('level', filters.level);
+
+            const response = await fetch(`/api/courses/filter?${params.toString()}`);
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+            }
+
+            return response.json();
+        },
+        staleTime: 5 * 60 * 1000, // 5 minutes
+        gcTime: 10 * 60 * 1000, // 10 minutes
+    });
+}
+
+// =============================================
+// INDIVIDUAL COURSE QUERY
+// =============================================
+
+export function useCourseQuery(courseCode: string) {
+    return useQuery({
+        queryKey: ['course', courseCode],
+        queryFn: async (): Promise<Course> => {
+            const response = await fetch(`/api/courses/${encodeURIComponent(courseCode)}`);
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+            }
+
+            return response.json();
         },
         enabled: !!courseCode,
-        // Provide immediate data from catalog if available to avoid request
-        initialData: () => {
-            const allCourses = queryClient.getQueryData<CoursesResponse>(['courses']);
-            return allCourses?.find((c) => c.code === courseCode);
-        },
-        // Align updatedAt with catalog cache so the data stays in sync
-        initialDataUpdatedAt: () => {
-            const state = queryClient.getQueryState(['courses']);
-            return state?.dataUpdatedAt;
-        }
+        staleTime: 10 * 60 * 1000, // 10 minutes
+        gcTime: 30 * 60 * 1000, // 30 minutes
     });
-};
+}
 
-// Filter courses by department, level, etc.
-export const useFilteredCoursesQuery = (filters: CourseFilter | null) => {
-    // Validate filters with Zod
-    const validatedFilters = filters ? CourseFilterSchema.parse(filters) : null;
+// Helper function to find a course by code from a list of courses
+export function findCourseByCode(allCourses: Course[] | undefined, courseCode: string): Course | undefined {
+    if (!allCourses) return undefined;
+    const cached = allCourses?.find((c: Course) => c.code === courseCode);
+    return cached;
+}
 
-    return useQuery<CoursesResponse>({
-        queryKey: ['courses', 'filtered', validatedFilters],
-        queryFn: async () => {
-            const { data } = await api.get<CoursesResponse>('/courses/filter', {
-                params: validatedFilters
-            });
-            return data;
+// Helper function to get course details from cache or fetch if needed
+export function useCourseDetails(courseCode: string, allCourses?: Course[]) {
+    return useQuery({
+        queryKey: ['course-details', courseCode],
+        queryFn: async (): Promise<Course | undefined> => {
+            // First try to find in cached courses
+            if (allCourses) {
+                return allCourses?.find((c: Course) => c.code === courseCode);
+            }
+
+            // If not found, fetch from API
+            const response = await fetch(`/api/courses/${courseCode}`);
+            if (!response.ok) {
+                throw new Error('Failed to fetch course details');
+            }
+            return response.json();
         },
-        enabled: !!validatedFilters
+        enabled: !!courseCode,
     });
-};
-
-// Search courses by keyword
-export const useSearchCoursesQuery = (searchTerm: string | null) => {
-    // Validate search term
-    const isValidSearch = searchTerm ?
-        CourseSearchSchema.safeParse({ q: searchTerm }).success :
-        false;
-
-    return useQuery<CoursesResponse>({
-        queryKey: ['courses', 'search', searchTerm],
-        queryFn: async () => {
-            const { data } = await api.get<CoursesResponse>('/courses/search', {
-                params: { q: searchTerm }
-            });
-            return data;
-        },
-        enabled: isValidSearch
-    });
-}; 
+} 

@@ -19,7 +19,7 @@ import {
   useUpdatePlanMutation,
 } from "@/hooks/api/usePlanQuery";
 import { useParams } from "next/navigation";
-import type { Quarter } from "@/lib/types";
+import type { Quarter, UserPlan } from "@/lib/types";
 import { Plus, Share, Settings } from "lucide-react";
 import { usePlannerStore } from "@/hooks/usePlannerStore";
 import { AddCourseDialog } from "@/components/add-course-dialog";
@@ -74,16 +74,24 @@ export default function PlanDetailPage() {
   // Sync local quarters state when plan data arrives or updates
   useEffect(() => {
     if (plan?.quarters) {
-      setQuarters(plan.quarters);
+      // Ensure quarter IDs are in the correct format (Season-Year)
+      const formattedQuarters = plan.quarters.map((quarter) => ({
+        ...quarter,
+        id: `${quarter.season}-${quarter.year}`,
+        name: `${quarter.season} ${quarter.year}`,
+      }));
+
+      setQuarters(formattedQuarters);
+
       // Ensure global store stays in sync with latest server data
       const existingPlans = usePlannerStore.getState().plans;
       const exists = existingPlans.some((p) => p.id === plan!.id);
       if (!exists) {
-        addPlanToStore(plan as any); // cast since function expects UserPlan
+        addPlanToStore(plan as UserPlan); // cast since function expects UserPlan
       } else {
         updatePlanStore(plan!.id ?? "", {
           name: plan!.name,
-          quarters: plan!.quarters,
+          quarters: formattedQuarters,
           includeSummer: plan!.includeSummer,
         });
       }
@@ -124,7 +132,7 @@ export default function PlanDetailPage() {
         planId,
         updates: { quarters: updatedQuarters },
       });
-    } catch (error) {
+    } catch {
       // Revert optimistic updates on failure
       setQuarters(quarters);
       updatePlanStore(planId, { quarters });
@@ -185,12 +193,26 @@ export default function PlanDetailPage() {
                         );
 
                         try {
-                          await movePlannedCourseMutation.mutateAsync({
+                          // Parse source quarter (format: 'Summer-2025')
+                          const [fromQuarter, fromYearString] =
+                            fromQuarterId.split("-");
+                          const fromYear = parseInt(fromYearString);
+
+                          // Parse target quarter (format: 'Fall-2025')
+                          const [toQuarter, toYearString] =
+                            toQuarterId.split("-");
+                          const toYear = parseInt(toYearString);
+
+                          const payload = {
                             planId,
                             courseCode: course.courseCode,
-                            fromQuarter: fromQuarterId,
-                            toQuarter: toQuarterId,
-                          });
+                            fromQuarter,
+                            fromYear,
+                            toQuarter,
+                            toYear,
+                          };
+
+                          await movePlannedCourseMutation.mutateAsync(payload);
                         } catch {
                           // Revert optimistic update on failure
                           movePlannedCourse(
@@ -276,10 +298,15 @@ export default function PlanDetailPage() {
                   addPlannedCourse(courseCode, targetQuarterId); // optimistic
 
                   try {
+                    // Extract year from targetQuarterId (format: '2025-spring', '2026-fall', etc.)
+                    const year = parseInt(targetQuarterId.split("-")[0]);
+                    const quarter = targetQuarterId.split("-")[1];
+
                     await addPlannedCourseMutation.mutateAsync({
                       planId,
                       courseCode,
-                      quarter: targetQuarterId,
+                      quarter,
+                      year,
                     });
                   } catch {
                     // Roll back on failure

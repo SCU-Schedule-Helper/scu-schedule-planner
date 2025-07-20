@@ -63,16 +63,10 @@ export async function GET() {
             );
         }
 
-        // console.log('Core requirements:', coreRequirements);
 
         const formattedCoreRequirements = coreRequirements.map(req => {
             const courseCodes = parseCourseExpression(req.fulfilled_by || '');
             const courses = allCourses.filter(c => courseCodes.includes(c.code));
-
-            // Log details about courses for debugging
-            // console.log(`Processing requirement "${req.name}" with ${courses.length} courses:`,
-            // courses.map(c => ({ code: c.code, id: c.id, title: c.title?.slice(0, 50) }))
-            // );
 
             // Validate each course individually with detailed error reporting
             const validatedCourses = [];

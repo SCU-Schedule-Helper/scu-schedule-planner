@@ -1,261 +1,344 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import axios from 'axios';
-import { UserPlanSchema, PlannedCourseSchema, SubstitutionSchema } from '@/lib/types';
-import { z } from 'zod';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { UserPlan, PlannedCourse, MovePlannedCoursePayload } from '@/lib/types';
+import { usePlannerStore } from '../usePlannerStore';
 
-// Define API response types with userId
-export const ApiUserPlanSchema = UserPlanSchema.extend({
-    id: z.string().optional(),
-    userId: z.string()
-});
+// =============================================
+// PLAN QUERY
+// =============================================
 
-type ApiUserPlan = z.infer<typeof ApiUserPlanSchema>;
-type PlannedCourse = z.infer<typeof PlannedCourseSchema>;
-type Substitution = z.infer<typeof SubstitutionSchema>;
+export function usePlanQuery(planId: string) {
+    return useQuery({
+        queryKey: ['plan', planId],
+        queryFn: async (): Promise<UserPlan> => {
+            const response = await fetch(`/api/plans/${planId}`);
 
-// API client
-const api = axios.create({
-    baseURL: '/api',
-});
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+            }
 
-// Helper function to validate API responses
-const validateApiUserPlan = (data: unknown): ApiUserPlan => {
-    return ApiUserPlanSchema.parse(data);
-};
+            return response.json();
+        },
+        enabled: !!planId,
+        staleTime: 1 * 60 * 1000, // 1 minute for user-specific data
+        gcTime: 5 * 60 * 1000, // 5 minutes
+    });
+}
 
-const validateApiUserPlans = (data: unknown[]): ApiUserPlan[] => {
-    return data.map(item => ApiUserPlanSchema.parse(item));
-};
+// =============================================
+// PLAN UPDATE MUTATION
+// =============================================
 
-// Fetch user plans
-export const usePlansQuery = (userId: string) => {
-    return useQuery<ApiUserPlan[]>({
+export function useUpdatePlanMutation() {
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: async ({ planId, updates }: { planId: string; updates: Partial<UserPlan> }): Promise<UserPlan> => {
+            const response = await fetch(`/api/plans/${planId}`, {
+                method: 'PATCH',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(updates),
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+            }
+
+            return response.json();
+        },
+        onSuccess: (data, { planId }) => {
+            // Update the plan in the cache
+            queryClient.setQueryData(['plan', planId], data);
+
+            // Invalidate related queries
+            queryClient.invalidateQueries({ queryKey: ['plan', planId] });
+            queryClient.invalidateQueries({ queryKey: ['plans'] });
+        },
+    });
+}
+
+// =============================================
+// PLAN DELETE MUTATION
+// =============================================
+
+export function useDeletePlanMutation() {
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: async (planId: string): Promise<{ success: boolean; message: string }> => {
+            const response = await fetch(`/api/plans/${planId}`, {
+                method: 'DELETE',
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+            }
+
+            return response.json();
+        },
+        onSuccess: (data, planId) => {
+            // Remove the plan from the cache
+            queryClient.removeQueries({ queryKey: ['plan', planId] });
+
+            // Invalidate related queries
+            queryClient.invalidateQueries({ queryKey: ['plans'] });
+        },
+    });
+}
+
+// =============================================
+// PLANNED COURSES QUERY
+// =============================================
+
+export function usePlannedCoursesQuery(planId: string) {
+    return useQuery({
+        queryKey: ['plannedCourses', planId],
+        queryFn: async (): Promise<PlannedCourse[]> => {
+            const response = await fetch(`/api/plans/${planId}/planned-courses`);
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+            }
+
+            return response.json();
+        },
+        enabled: !!planId,
+        staleTime: 1 * 60 * 1000, // 1 minute for user-specific data
+        gcTime: 5 * 60 * 1000, // 5 minutes
+    });
+}
+
+// =============================================
+// ADD PLANNED COURSE MUTATION
+// =============================================
+
+export function useAddPlannedCourseMutation() {
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: async ({
+            planId,
+            courseCode,
+            quarter,
+            year,
+            status = 'planned',
+            units
+        }: {
+            planId: string;
+            courseCode: string;
+            quarter: string;
+            year: number;
+            status?: 'planned' | 'completed' | 'in-progress' | 'not_started';
+            units?: string;
+        }): Promise<PlannedCourse> => {
+            const response = await fetch(`/api/plans/${planId}/planned-courses`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    courseCode,
+                    quarter,
+                    year,
+                    status,
+                    units,
+                }),
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+            }
+
+            return response.json();
+        },
+        onSuccess: (data, { planId }) => {
+            // Invalidate related queries
+            queryClient.invalidateQueries({ queryKey: ['plan', planId] });
+            queryClient.invalidateQueries({ queryKey: ['plannedCourses', planId] });
+        },
+    });
+}
+
+// =============================================
+// UPDATE PLANNED COURSE MUTATION
+// =============================================
+
+export function useUpdatePlannedCourseMutation() {
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: async ({
+            planId,
+            courseCode,
+            updates
+        }: {
+            planId: string;
+            courseCode: string;
+            updates: Partial<PlannedCourse>;
+        }): Promise<PlannedCourse> => {
+            const response = await fetch(`/api/plans/${planId}/planned-courses/${courseCode}`, {
+                method: 'PATCH',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(updates),
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+            }
+
+            return response.json();
+        },
+        onSuccess: (data, { planId }) => {
+            // Invalidate related queries
+            queryClient.invalidateQueries({ queryKey: ['plan', planId] });
+            queryClient.invalidateQueries({ queryKey: ['plannedCourses', planId] });
+        },
+    });
+}
+
+// =============================================
+// DELETE PLANNED COURSE MUTATION
+// =============================================
+
+export function useDeletePlannedCourseMutation() {
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: async ({ planId, courseCode }: { planId: string; courseCode: string }): Promise<{ success: boolean; message: string }> => {
+            const response = await fetch(`/api/plans/${planId}/planned-courses/${courseCode}`, {
+                method: 'DELETE',
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+            }
+
+            return response.json();
+        },
+        onSuccess: (data, { planId }) => {
+            // Invalidate related queries
+            queryClient.invalidateQueries({ queryKey: ['plan', planId] });
+            queryClient.invalidateQueries({ queryKey: ['plannedCourses', planId] });
+        },
+    });
+}
+
+// =============================================
+// PLANS QUERY (All plans for a user)
+// =============================================
+
+export function usePlansQuery(userId: string) {
+    return useQuery({
         queryKey: ['plans', userId],
-        queryFn: async () => {
-            const { data } = await api.get<unknown[]>('/plans', {
-                params: { userId }
-            });
-            return validateApiUserPlans(data);
-        },
-        enabled: !!userId
-    });
-};
+        queryFn: async (): Promise<UserPlan[]> => {
+            if (!userId) return [];
 
-// Fetch a single plan
-export const usePlanQuery = (planId: string) => {
-    return useQuery<ApiUserPlan>({
-        queryKey: ['plans', 'detail', planId],
-        queryFn: async () => {
-            const { data } = await api.get<unknown>(`/plans/${planId}`);
-            return validateApiUserPlan(data);
-        },
-        enabled: !!planId
-    });
-};
+            const response = await fetch(`/api/plans?userId=${userId}`);
 
-// Create a new plan
-export const useCreatePlanMutation = () => {
-    const queryClient = useQueryClient();
-
-    return useMutation<ApiUserPlan, Error, Omit<ApiUserPlan, 'id'>>({
-        mutationFn: async (plan) => {
-            const { data } = await api.post<unknown>('/plans', plan);
-            return validateApiUserPlan(data);
-        },
-        onSuccess: (data, variables) => {
-            queryClient.invalidateQueries({ queryKey: ['plans', variables.userId] });
-        }
-    });
-};
-
-// Update an existing plan
-export const useUpdatePlanMutation = () => {
-    const queryClient = useQueryClient();
-
-    return useMutation<ApiUserPlan, Error, { planId: string; updates: Partial<ApiUserPlan> }>({
-        mutationFn: async ({ planId, updates }) => {
-            const { data } = await api.patch<unknown>(`/plans/${planId}`, updates);
-            return validateApiUserPlan(data);
-        },
-        onSuccess: (data) => {
-            if (data.id) {
-                queryClient.invalidateQueries({ queryKey: ['plans', 'detail', data.id] });
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
             }
-            queryClient.invalidateQueries({ queryKey: ['plans', data.userId] });
-        }
-    });
-};
 
-// Delete a plan
-export const useDeletePlanMutation = () => {
-    const queryClient = useQueryClient();
-
-    return useMutation<void, Error, { planId: string; userId: string }>({
-        mutationFn: async ({ planId }) => {
-            await api.delete(`/plans/${planId}`);
+            return response.json();
         },
-        onSuccess: (_, variables) => {
-            queryClient.invalidateQueries({ queryKey: ['plans', variables.userId] });
-            queryClient.removeQueries({ queryKey: ['plans', 'detail', variables.planId] });
-        }
+        enabled: !!userId,
+        staleTime: 1 * 60 * 1000, // 1 minute for user-specific data
+        gcTime: 5 * 60 * 1000, // 5 minutes
     });
-};
+}
 
-// Add a completed course
-export const useAddCompletedCourseMutation = () => {
+// =============================================
+// MOVE PLANNED COURSE MUTATION
+// =============================================
+
+export function useMovePlannedCourseMutation() {
     const queryClient = useQueryClient();
 
-    return useMutation<PlannedCourse, Error, {
-        planId: string;
-        courseCode: string;
-        grade?: string;
-        isTransfer?: boolean;
-    }>({
-        mutationFn: async ({
-            planId,
-            courseCode,
-            grade,
-            isTransfer
-        }) => {
-            const { data } = await api.post<PlannedCourse>(`/plans/${planId}/completed-courses`, {
-                courseCode,
-                grade,
-                isTransfer
-            });
-            return data;
-        },
-        onSuccess: (data, variables) => {
-            queryClient.invalidateQueries({ queryKey: ['plans', 'detail', variables.planId] });
-        }
-    });
-};
-
-// Remove a completed course
-export const useRemoveCompletedCourseMutation = () => {
-    const queryClient = useQueryClient();
-
-    return useMutation<void, Error, { planId: string; courseCode: string }>({
-        mutationFn: async ({ planId, courseCode }) => {
-            await api.delete(`/plans/${planId}/completed-courses/${courseCode}`);
-        },
-        onSuccess: (_, variables) => {
-            queryClient.invalidateQueries({ queryKey: ['plans', 'detail', variables.planId] });
-        }
-    });
-};
-
-// Add a planned course
-export const useAddPlannedCourseMutation = () => {
-    const queryClient = useQueryClient();
-
-    return useMutation<PlannedCourse, Error, {
-        planId: string;
-        courseCode: string;
-        quarter: string;
-    }>({
-        mutationFn: async ({
-            planId,
-            courseCode,
-            quarter
-        }) => {
-            const { data } = await api.post<PlannedCourse>(`/plans/${planId}/planned-courses`, {
-                courseCode,
-                quarter
-            });
-            return data;
-        },
-        onSuccess: (data, variables) => {
-            queryClient.invalidateQueries({ queryKey: ['plans', 'detail', variables.planId] });
-            if (data && 'userId' in data && data.userId) {
-                queryClient.invalidateQueries({ queryKey: ['plans', data.userId] });
-            }
-        }
-    });
-};
-
-// Move a planned course
-export const useMovePlannedCourseMutation = () => {
-    const queryClient = useQueryClient();
-
-    return useMutation<PlannedCourse, Error, {
-        planId: string;
-        courseCode: string;
-        fromQuarter: string;
-        toQuarter: string;
-    }>({
+    return useMutation({
         mutationFn: async ({
             planId,
             courseCode,
             fromQuarter,
-            toQuarter
-        }) => {
-            const { data } = await api.patch<PlannedCourse>(
-                `/plans/${planId}/planned-courses/${courseCode}`,
-                { fromQuarter, toQuarter }
-            );
-            return data;
-        },
-        onSuccess: (data, variables) => {
-            queryClient.invalidateQueries({ queryKey: ['plans', 'detail', variables.planId] });
-            if (data && 'userId' in data && data.userId) {
-                queryClient.invalidateQueries({ queryKey: ['plans', data.userId] });
-            }
-        }
-    });
-};
+            fromYear,
+            toQuarter,
+            toYear,
+        }: MovePlannedCoursePayload): Promise<PlannedCourse> => {
+            const response = await fetch(`/api/plans/${planId}/planned-courses/${courseCode}`, {
+                method: 'PATCH',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ 
+                    fromQuarter,
+                    fromYear,
+                    quarter: toQuarter, 
+                    year: toYear 
+                }),
+            });
 
-// Add a substitution
-export const useAddSubstitutionMutation = () => {
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+            }
+
+            return response.json();
+        },
+        onSuccess: async (data, { planId }) => {
+            const { userId, updatePlan } = usePlannerStore.getState();
+
+            // Invalidate and refetch queries to get the latest server state
+            await queryClient.invalidateQueries({ queryKey: ['plan', planId] });
+            await queryClient.invalidateQueries({ queryKey: ['plans', userId] });
+
+            // After invalidation, get the fresh plan data from the cache
+            const freshPlan = await queryClient.getQueryData<UserPlan>(['plan', planId]);
+
+            // Update the Zustand store with the authoritative server state
+            if (freshPlan) {
+                updatePlan(planId, freshPlan);
+            }
+        },
+    });
+}
+
+// =============================================
+// CREATE PLAN MUTATION
+// =============================================
+
+export function useCreatePlanMutation() {
     const queryClient = useQueryClient();
 
-    return useMutation<Substitution, Error, {
-        planId: string;
-        substitution: Substitution
-    }>({
-        mutationFn: async ({
-            planId,
-            substitution
-        }) => {
-            const { data } = await api.post<Substitution>(
-                `/plans/${planId}/substitutions`,
-                substitution
-            );
-            return data;
-        },
-        onSuccess: (data, variables) => {
-            queryClient.invalidateQueries({ queryKey: ['plans', 'detail', variables.planId] });
-            if (data && 'userId' in data && data.userId) {
-                queryClient.invalidateQueries({ queryKey: ['plans', data.userId] });
+    return useMutation({
+        mutationFn: async (planData: Omit<UserPlan, 'id' | 'createdAt' | 'updatedAt'>): Promise<UserPlan> => {
+            const response = await fetch('/api/plans', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(planData),
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
             }
-        }
-    });
-};
 
-// Remove a substitution
-export const useRemoveSubstitutionMutation = () => {
-    const queryClient = useQueryClient();
-
-    return useMutation<{
-        planId: string;
-        requirementGroupId: string;
-        originalCourseCode: string;
-    }, Error, {
-        planId: string;
-        requirementGroupId: string;
-        originalCourseCode: string;
-    }>({
-        mutationFn: async ({
-            planId,
-            requirementGroupId,
-            originalCourseCode
-        }) => {
-            await api.delete(
-                `/plans/${planId}/substitutions/${requirementGroupId}/${originalCourseCode}`
-            );
-            return { planId, requirementGroupId, originalCourseCode };
+            return response.json();
         },
-        onSuccess: (data) => {
-            queryClient.invalidateQueries({ queryKey: ['plans', 'detail', data.planId] });
-        }
+        onSuccess: () => {
+            // Invalidate the plans query to refetch the list
+            queryClient.invalidateQueries({ queryKey: ['plans'] });
+        },
     });
-}; 
+}

@@ -1,5 +1,6 @@
 import type { Course, RequirementGroup, Substitution, UserPlan } from "@/lib/types";
 import type { ValidationReport } from "@/lib/validation/types";
+import { getAverageUnits } from "@/lib/types";
 
 export interface RequirementProgress {
     id: string;
@@ -46,9 +47,12 @@ export function computeDashboardMetrics(params: {
     let upperDivisionCompleted = 0;
 
     for (const c of plan.completedCourses) {
-        const courseInfo = courses[c.courseCode] ?? { units: 0, isUpperDivision: false } as Partial<Course>;
-        unitsCompleted += courseInfo.units ?? 0;
-        if (courseInfo.isUpperDivision) upperDivisionCompleted += courseInfo.units ?? 0;
+        const courseInfo = courses[c.courseCode] ?? { units: null, code: "" } as Partial<Course>;
+        const courseUnits = getAverageUnits(courseInfo.units ? String(courseInfo.units) : null);
+        unitsCompleted += courseUnits;
+        // Check if course is upper division (100+ level)
+        const courseNumber = parseInt(courseInfo.code.match(/\d+/)?.[0] || "0");
+        if (courseNumber >= 100) upperDivisionCompleted += courseUnits;
     }
 
     // Upper-division unit metrics ----------------------------------------
@@ -56,7 +60,7 @@ export function computeDashboardMetrics(params: {
     let upperDivUnitsPlanned = 0;
 
     // Build map for substitution overrides keyed by course code
-    const substitutionOverrides: Record<string, { isUD?: boolean | null; units?: number | null }> = {};
+    const substitutionOverrides: Record<string, { isUD?: boolean | null; units?: string | null }> = {};
 
     const planSubs: Substitution[] = (plan as unknown as { substitutions: Substitution[] }).substitutions ?? [];
     planSubs.forEach((s) => {
@@ -68,8 +72,9 @@ export function computeDashboardMetrics(params: {
 
     const isUpperDivisionCourse = (code: string): boolean => {
         const info = courses[code];
-        if (info && info.isUpperDivision !== undefined) {
-            return Boolean(info.isUpperDivision);
+        if (info && info.code) {
+            const courseNumber = parseInt(info.code.match(/\d+/)?.[0] || "0");
+            return courseNumber >= 100;
         }
         // Fallback: numeric part >= 100
         const parts = code.split(" ");
@@ -81,8 +86,9 @@ export function computeDashboardMetrics(params: {
         const override = substitutionOverrides[c.courseCode];
         const ud = override?.isUD ?? isUpperDivisionCourse(c.courseCode);
         if (ud) {
-            const info = courses[c.courseCode] ?? { units: 0 } as Partial<Course>;
-            const units = override?.units ?? info.units ?? 0;
+            const info = courses[c.courseCode] ?? { units: null } as Partial<Course>;
+            const infoUnits = info.units ? String(info.units) : null;
+            const units = getAverageUnits(override?.units ?? infoUnits);
             upperDivUnitsCompleted += units;
         }
     });
@@ -92,8 +98,9 @@ export function computeDashboardMetrics(params: {
             const override = substitutionOverrides[pc.courseCode];
             const ud = override?.isUD ?? isUpperDivisionCourse(pc.courseCode);
             if (ud) {
-                const info = courses[pc.courseCode] ?? { units: 0 } as Partial<Course>;
-                const units = override?.units ?? info.units ?? 0;
+                const info = courses[pc.courseCode] ?? { units: null } as Partial<Course>;
+                const infoUnits = info.units ? String(info.units) : null;
+                const units = getAverageUnits(override?.units ?? infoUnits);
                 upperDivUnitsPlanned += units;
             }
         });
@@ -135,8 +142,9 @@ export function computeDashboardMetrics(params: {
     plan.quarters.forEach((q) => {
         let total = 0;
         q.courses.forEach((pc) => {
-            const info = courses[pc.courseCode] ?? { units: 0 } as Partial<Course>;
-            total += info.units ?? 0;
+            const info = courses[pc.courseCode] ?? { units: null } as Partial<Course>;
+            const infoUnits = info.units ? String(info.units) : null;
+            total += getAverageUnits(infoUnits);
         });
         unitsPlanned += total;
         unitsByQuarterArr.push({ quarter: q.name, units: total });

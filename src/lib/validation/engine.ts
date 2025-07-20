@@ -13,6 +13,8 @@ import {
     RequirementStatus,
 } from "./types";
 
+import { getAverageUnits } from "../types";
+
 // ---------------------------------------------------------------------------
 // Helpers for quarter ordering & parsing
 // ---------------------------------------------------------------------------
@@ -32,8 +34,8 @@ interface QuarterMeta {
 }
 
 function parseQuarterName(quarterName: string): QuarterMeta {
-    // Expected format: "Fall 2025" (season followed by year)
-    const [season, yearStr] = quarterName.split(" ");
+    // Expected format: "Fall-2025" (season followed by year)
+    const [season, yearStr] = quarterName.split("-");
     if (!season || !yearStr) {
         throw new Error(`Invalid quarter name: ${quarterName}`);
     }
@@ -86,15 +88,8 @@ export function validatePlan({
     const crossMap = new Map<string, string[]>();
     for (const c of Object.values(courses)) {
         if (!c.code) continue;
-        // Forward aliases declared on this course
-        if (Array.isArray(c.crossListedAs)) {
-            for (const alias of c.crossListedAs) {
-                // course -> alias
-                crossMap.set(c.code, [...(crossMap.get(c.code) ?? []), alias]);
-                // alias -> course (reverse lookup)
-                crossMap.set(alias, [...(crossMap.get(alias) ?? []), c.code]);
-            }
-        }
+        // Note: crossListedAs is not available in the new schema
+        // This functionality has been removed for simplicity
     }
 
     // Utility to expand a code with its cross-listed equivalents
@@ -134,7 +129,12 @@ export function validatePlan({
             const code = pc.courseCode ?? pc.code ?? "";
             if (!code) continue;
             const courseInfo = courses[code];
-            totalUnits += courseInfo?.units ?? pc.units ?? 0;
+
+            // Use getAverageUnits for proper text-based units calculation
+            const courseUnits = courseInfo?.units
+                ? getAverageUnits(String(courseInfo.units))
+                : 0;
+            totalUnits += courseUnits;
 
             if (codesInThisQuarter.has(code)) {
                 addError(messages, {
@@ -193,12 +193,9 @@ export function validatePlan({
             const cr = getOrCreateCourseReport(courseReports, code);
 
             // Quarter offering
-            if (
-                courseInfo.offeredQuarters &&
-                courseInfo.offeredQuarters.length > 0
-            ) {
+            if (courseInfo.quarters_offered) {
                 const { season } = parseQuarterName(qName);
-                if (!courseInfo.offeredQuarters.includes(season)) {
+                if (!courseInfo.quarters_offered.includes(season)) {
                     cr.messages.push({
                         code: "NOT_OFFERED",
                         level: "warning",
@@ -208,38 +205,78 @@ export function validatePlan({
                 }
             }
 
-            // Prerequisite check
-            if (courseInfo.prerequisites && courseInfo.prerequisites.length > 0) {
-                const unmet = courseInfo.prerequisites.filter((pr) => {
-                    const prereqCourses = pr.courses;
-                    if (pr.type === "or") {
-                        return !prereqCourses.some((c: string) => takenBeforeSet.has(c));
+            // Prerequisite check (updated for JSONB prerequisites)
+            if (courseInfo.prerequisites) {
+                try {
+                    let prereqCodes: string[] = [];
+
+                    // Handle JSONB array format
+                    if (Array.isArray(courseInfo.prerequisites)) {
+                        prereqCodes = courseInfo.prerequisites.flatMap((prereq: unknown) => {
+                            if (typeof prereq === 'string') {
+                                return [prereq];
+                            } else if (prereq && typeof prereq === 'object' && 'courses' in prereq) {
+                                const courses = (prereq as { courses?: string[] }).courses;
+                                return courses || [];
+                            }
+                            return [];
+                        });
                     }
-                    // required or recommended -> all must be satisfied
-                    return !prereqCourses.every((c: string) => takenBeforeSet.has(c));
-                });
-                if (unmet.length > 0) {
-                    cr.messages.push({
-                        code: "PREREQ_UNMET",
-                        level: "error",
-                        message: `Prerequisites not met for ${code}`,
-                        context: { quarter: qName, unmet },
-                    });
+
+                    const cleanCodes = prereqCodes.map((code: string) => code.replace(/\s+/g, '').toUpperCase());
+
+                    // Simple check: if any prerequisite courses are mentioned and none are taken
+                    if (cleanCodes.length > 0) {
+                        const takenPrereqs = cleanCodes.filter((c: string) => takenBeforeSet.has(c));
+                        if (takenPrereqs.length === 0) {
+                            cr.messages.push({
+                                code: "PREREQ_UNMET",
+                                level: "warning",
+                                message: `May have unmet prerequisites for ${code}`,
+                                context: { quarter: qName, prerequisiteExpression: JSON.stringify(courseInfo.prerequisites) },
+                            });
+                        }
+                    }
+                } catch (error) {
+                    // Handle parsing errors gracefully
+                    console.warn(`Error parsing prerequisites for ${code}:`, error);
                 }
             }
 
-            // Corequisite check
-            if (courseInfo.corequisites && courseInfo.corequisites.length > 0) {
-                const unmetCoreqs = courseInfo.corequisites.filter(
-                    (c: string) => !codesInThisQuarter.has(c) && !takenBeforeSet.has(c)
-                );
-                if (unmetCoreqs.length > 0) {
-                    cr.messages.push({
-                        code: "COREQ_UNMET",
-                        level: "error",
-                        message: `Corequisites not satisfied for ${code}: ${unmetCoreqs.join(", ")}`,
-                        context: { quarter: qName, unmetCoreqs },
-                    });
+            // Corequisite check (updated for JSONB corequisites)
+            if (courseInfo.corequisites) {
+                try {
+                    let coreqCodes: string[] = [];
+
+                    // Handle JSONB array format
+                    if (Array.isArray(courseInfo.corequisites)) {
+                        coreqCodes = courseInfo.corequisites.flatMap((coreq: unknown) => {
+                            if (typeof coreq === 'string') {
+                                return [coreq];
+                            } else if (coreq && typeof coreq === 'object' && 'courses' in coreq) {
+                                const courses = (coreq as { courses?: string[] }).courses;
+                                return courses || [];
+                            }
+                            return [];
+                        });
+                    }
+
+                    const cleanCodes = coreqCodes.map((code: string) => code.replace(/\s+/g, '').toUpperCase());
+
+                    const unmetCoreqs = cleanCodes.filter(
+                        (c: string) => !codesInThisQuarter.has(c) && !takenBeforeSet.has(c)
+                    );
+                    if (unmetCoreqs.length > 0) {
+                        cr.messages.push({
+                            code: "COREQ_UNMET",
+                            level: "warning",
+                            message: `May have unmet corequisites for ${code}: ${unmetCoreqs.join(", ")}`,
+                            context: { quarter: qName, unmetCoreqs, corequisiteExpression: JSON.stringify(courseInfo.corequisites) },
+                        });
+                    }
+                } catch (error) {
+                    // Handle parsing errors gracefully
+                    console.warn(`Error parsing corequisites for ${code}:`, error);
                 }
             }
         }

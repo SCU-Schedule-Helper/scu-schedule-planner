@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { calculatePrereqDepths, CourseDepth } from "@/lib/analytics/calculatePrereqDepths";
+import { calculatePrereqDepths, PrereqDepthResult } from "@/lib/analytics/calculatePrereqDepths";
 import { useCoursesQuery } from "@/hooks/api/useCoursesQuery";
 import { usePlannerStore } from "@/hooks/usePlannerStore";
 import { useShallow } from "zustand/shallow";
@@ -8,14 +8,14 @@ import { useUniversityRequirementsQuery, useMajorRequirementsQuery, useEmphasisR
 /**
  * Returns prerequisite-chain depths for all courses in the active plan (planned + remaining).
  */
-export function usePrereqDepthData(): CourseDepth[] {
+export function usePrereqDepthData(): PrereqDepthResult[] {
     const { currentPlanId, plans } = usePlannerStore(useShallow((s) => ({ currentPlanId: s.currentPlanId, plans: s.plans })));
     const plan = plans.find((p) => p.id === currentPlanId);
 
     const { data: catalog = [] } = useCoursesQuery();
 
     // Requirement groups – we need all course codes listed there
-    const { data: uniReqs = [] } = useUniversityRequirementsQuery();
+    const { data: uniReqs } = useUniversityRequirementsQuery();
     const { data: majorReqs = [] } = useMajorRequirementsQuery();
     const { data: empReqs = [] } = useEmphasisRequirementsQuery(plan?.emphasisId ?? "");
 
@@ -27,7 +27,13 @@ export function usePrereqDepthData(): CourseDepth[] {
     }
 
     // Add requirement-listed courses (includes ones not yet planned/completed)
-    const allReqGroups = [...uniReqs, ...majorReqs, ...empReqs];
+    const allReqGroups = [
+        ...(uniReqs?.coreRequirements || []),
+        ...(uniReqs?.corePathways || []),
+        ...majorReqs,
+        ...empReqs
+    ];
+    
     allReqGroups.forEach((req) => {
         const required = (req.coursesRequired ?? req.courses ?? []) as string[];
         targetCodes.push(...required);
@@ -39,4 +45,4 @@ export function usePrereqDepthData(): CourseDepth[] {
         const codesUnique = Array.from(new Set(targetCodes));
         return calculatePrereqDepths(catalog, codesUnique);
     }, [catalog, targetCodes.join(","), uniReqs, majorReqs, empReqs]);
-} 
+}

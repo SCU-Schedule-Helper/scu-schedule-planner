@@ -1,51 +1,95 @@
 import { useQuery } from '@tanstack/react-query';
-import axios from 'axios';
-import { z } from 'zod';
 
-// API client
-const api = axios.create({
-    baseURL: '/api',
-});
+// =============================================
+// MAJORS QUERY
+// =============================================
 
-// Define schemas for onboarding data
-export const MajorSchema = z.object({
-    id: z.string(),
-    name: z.string(),
-    code: z.string()
-});
+export interface Major {
+    id: string;
+    name: string;
+    description?: string;
+    departmentCode?: string;
+    requiresEmphasis: boolean;
+}
 
-export const EmphasisAreaSchema = z.object({
-    id: z.string(),
-    name: z.string(),
-    description: z.string().optional(),
-    majorId: z.string()
-});
+export function useMajorsQuery() {
+    return useQuery({
+        queryKey: ['majors'],
+        queryFn: async (): Promise<Major[]> => {
+            const response = await fetch('/api/onboarding/majors');
 
-// Define types from schemas
-type Major = z.infer<typeof MajorSchema>;
-type EmphasisArea = z.infer<typeof EmphasisAreaSchema>;
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+            }
 
-// Fetch majors
-export const useMajorsQuery = () => {
-    return useQuery<Major[]>({
-        queryKey: ['onboarding', 'majors'],
-        queryFn: async () => {
-            const { data } = await api.get<Major[]>('/onboarding/majors');
-            return data;
-        }
-    });
-};
-
-// Fetch emphasis areas for a major
-export const useEmphasisAreasQuery = (majorId?: string) => {
-    return useQuery<EmphasisArea[]>({
-        queryKey: ['onboarding', 'emphasis', majorId],
-        queryFn: async () => {
-            const { data } = await api.get<EmphasisArea[]>('/onboarding/emphasis-areas', {
-                params: { majorId }
-            });
-            return data;
+            return response.json();
         },
-        enabled: !!majorId
+        staleTime: 60 * 60 * 1000, // 1 hour
+        gcTime: 2 * 60 * 60 * 1000, // 2 hours
     });
-}; 
+}
+
+// =============================================
+// EMPHASIS AREAS QUERY
+// =============================================
+
+export interface EmphasisArea {
+    id: string;
+    name: string;
+    description?: string;
+    appliesTo?: string;
+    departmentCode?: string;
+}
+
+export function useEmphasisAreasQuery(majorId?: string) {
+    return useQuery({
+        queryKey: ['emphasisAreas', majorId],
+        queryFn: async (): Promise<EmphasisArea[]> => {
+            const params = new URLSearchParams();
+            if (majorId) {
+                params.append('majorId', majorId);
+            }
+
+            const response = await fetch(`/api/onboarding/emphasis-areas?${params.toString()}`);
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+            }
+
+            return response.json();
+        },
+        enabled: !!majorId,
+        staleTime: 60 * 60 * 1000, // 1 hour
+        gcTime: 2 * 60 * 60 * 1000, // 2 hours
+    });
+}
+
+// =============================================
+// SCHOOLS QUERY
+// =============================================
+
+export interface School {
+    id: string;
+    name: string;
+    description?: string;
+}
+
+export function useSchoolsQuery() {
+    return useQuery({
+        queryKey: ['schools'],
+        queryFn: async (): Promise<School[]> => {
+            const response = await fetch('/api/schools');
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+            }
+
+            return response.json();
+        },
+        staleTime: 60 * 60 * 1000, // 1 hour
+        gcTime: 2 * 60 * 60 * 1000, // 2 hours
+    });
+} 

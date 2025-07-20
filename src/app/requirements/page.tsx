@@ -12,6 +12,13 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { useEffect, useMemo } from "react";
 import {
   useUniversityRequirementsQuery,
@@ -23,21 +30,8 @@ import type { RequirementGroup, UserPlan } from "@/lib/types";
 import { usePlansQuery } from "@/hooks/api/usePlanQuery";
 
 export default function RequirementsPage() {
-  const {
-    selectedEmphasisId,
-    currentPlanId,
-    plans,
-    setCurrentPlan,
-    addPlan,
-    userId,
-  } = usePlannerStore();
-
-  const { data: universityCore = [], isLoading: uniLoading } =
-    useUniversityRequirementsQuery();
-  const { data: majorRequirements = [], isLoading: majorLoading } =
-    useMajorRequirementsQuery();
-  const { data: emphasisRequirements = [], isLoading: empLoading } =
-    useEmphasisRequirementsQuery(selectedEmphasisId ?? "");
+  const { currentPlanId, plans, setCurrentPlan, addPlan, userId } =
+    usePlannerStore();
 
   // Fetch plans from backend to hydrate store if necessary
   const { data: remotePlans = [] } = usePlansQuery(userId ?? "");
@@ -53,6 +47,15 @@ export default function RequirementsPage() {
   // ------------------------------------------------------------------
   const currentPlan = plans.find((p) => p.id === currentPlanId);
 
+  const { data: universityData, isLoading: uniLoading } =
+    useUniversityRequirementsQuery();
+  const universityCore = universityData?.coreRequirements ?? [];
+  const corePathways = universityData?.corePathways ?? [];
+  const { data: majorRequirements = [], isLoading: majorLoading } =
+    useMajorRequirementsQuery(currentPlan?.majorId);
+  const { data: emphasisRequirements = [], isLoading: empLoading } =
+    useEmphasisRequirementsQuery(currentPlan?.emphasisId || "");
+
   const completedCourseCodes: string[] =
     currentPlan?.completedCourses.map((c) => c.courseCode) ?? [];
 
@@ -63,20 +66,25 @@ export default function RequirementsPage() {
 
   // Calculate percentage progress for a single requirement group
   const calcProgress = (req: RequirementGroup): number => {
-    const required = req.coursesRequired ?? req.courses ?? [];
+    const required = (req.coursesRequired ?? req.courses ?? []) as (
+      | string
+      | { code: string }
+    )[];
     const totalRequired = required.length + (req.chooseFrom?.count ?? 0);
 
     let completed = 0;
 
     // Required courses
     completed += required.filter((c) =>
-      completedCourseCodes.includes(c)
+      completedCourseCodes.includes(typeof c === "string" ? c : c.code)
     ).length;
 
     // choose-from options
     if (req.chooseFrom) {
-      const chooseCompleted = req.chooseFrom.options.filter((c) =>
-        completedCourseCodes.includes(c)
+      const chooseCompleted = (
+        req.chooseFrom.options as (string | { code: string })[]
+      ).filter((c) =>
+        completedCourseCodes.includes(typeof c === "string" ? c : c.code)
       ).length;
       completed += Math.min(chooseCompleted, req.chooseFrom.count);
     }
@@ -93,6 +101,11 @@ export default function RequirementsPage() {
   const uniReqs: RequirementGroup[] = useMemo(
     () => addProgress(universityCore),
     [universityCore, completedCourseCodes]
+  );
+
+  const pathwayReqs: RequirementGroup[] = useMemo(
+    () => addProgress(corePathways),
+    [corePathways, completedCourseCodes]
   );
 
   const majorReqs: RequirementGroup[] = useMemo(
@@ -125,7 +138,31 @@ export default function RequirementsPage() {
     <div className="flex">
       <SidebarNav />
       <div className="flex-1">
-        <HeaderBar title="Requirements" />
+        <HeaderBar
+          title="Requirements"
+          actions={
+            <div className="flex items-center gap-4">
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-medium">Plan:</span>
+                <Select
+                  value={currentPlanId || ""}
+                  onValueChange={(value) => setCurrentPlan(value)}
+                >
+                  <SelectTrigger className="w-[200px]">
+                    <SelectValue placeholder="Select plan" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {plans.map((plan) => (
+                      <SelectItem key={plan.id} value={plan.id || ""}>
+                        {plan.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          }
+        />
 
         <main className="p-6">
           <Tabs defaultValue="university" className="space-y-6">
@@ -163,6 +200,36 @@ export default function RequirementsPage() {
                     <p>Loading...</p>
                   ) : (
                     <RequirementChecklist requirements={uniReqs} />
+                  )}
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <CardTitle className="text-xl text-scu-cardinal">
+                        Core Curriculum Pathways
+                      </CardTitle>
+                      <CardDescription>
+                        Explore interdisciplinary pathways
+                      </CardDescription>
+                    </div>
+                    <ProgressRing
+                      progress={calculateOverallProgress(pathwayReqs)}
+                      size={80}
+                      strokeWidth={6}
+                    >
+                      <span className="text-sm font-bold text-scu-cardinal">
+                        {Math.round(calculateOverallProgress(pathwayReqs))}%
+                      </span>
+                    </ProgressRing>
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {uniLoading ? (
+                    <p>Loading...</p>
+                  ) : (
+                    <RequirementChecklist requirements={pathwayReqs} />
                   )}
                 </CardContent>
               </Card>

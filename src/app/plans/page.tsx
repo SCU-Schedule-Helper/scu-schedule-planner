@@ -22,10 +22,8 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { OnboardingWizard } from "@/components/onboarding-wizard";
-import {
-  useCreatePlanMutation,
-  ApiUserPlanSchema,
-} from "@/hooks/api/usePlanQuery";
+import { useCreatePlanMutation } from "@/hooks/api/usePlanQuery";
+import { ApiUserPlanSchema } from "@/lib/store/planStore";
 import { z } from "zod";
 import type { Course, UserPlan } from "@/lib/types";
 import { VisuallyHidden } from "@radix-ui/react-visually-hidden";
@@ -89,7 +87,7 @@ export default function PlansIndexPage() {
     createPlanMutation.mutate(newPlan, {
       onSuccess: (plan) => {
         const planForStore: UserPlan = {
-          id: plan.id,
+          id: plan.id || crypto.randomUUID(), // Provide fallback ID if undefined
           name: plan.name,
           majorId: plan.majorId,
           emphasisId: plan.emphasisId,

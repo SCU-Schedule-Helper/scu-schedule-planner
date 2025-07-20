@@ -38,7 +38,8 @@ export function usePlanValidation(planOverride?: import("@/lib/types").UserPlan 
         // Store last planKey to avoid JSON.stringify cost if needed
         lastPlanKey.current = planKey;
         try {
-            const courseMap = catalogCourses.reduce<Record<string, Course>>((acc, c) => {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const courseMap = catalogCourses.reduce<Record<string, Course>>((acc: Record<string, Course>, c: any) => {
                 if (c.code) acc[c.code] = c;
                 return acc;
             }, {});

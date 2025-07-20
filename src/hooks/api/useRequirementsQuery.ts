@@ -1,44 +1,79 @@
 import { useQuery } from '@tanstack/react-query';
-import axios from 'axios';
-import { type RequirementGroupsResponse } from '@/lib/types';
+import { RequirementsResponse, UniversityRequirementsResponse } from '@/lib/types';
 
-// API client
-const api = axios.create({
-    baseURL: '/api',
-});
+// =============================================
+// MAJOR REQUIREMENTS QUERY
+// =============================================
 
-// Fetch major requirements
-export const useMajorRequirementsQuery = () => {
-    return useQuery<RequirementGroupsResponse>({
-        queryKey: ['requirements', 'major'],
-        queryFn: async () => {
-            const { data } = await api.get<RequirementGroupsResponse>('/requirements/major');
-            return data;
-        }
-    });
-};
+export function useMajorRequirementsQuery(majorId?: string, majorName?: string) {
+    return useQuery({
+        queryKey: ['majorRequirements', { majorId, majorName }],
+        queryFn: async (): Promise<RequirementsResponse> => {
+            const params = new URLSearchParams();
+            if (majorId) {
+                params.append('majorId', majorId);
+            } else if (majorName) {
+                params.append('major', majorName);
+            } else {
+                throw new Error('Either majorId or majorName must be provided');
+            }
 
-// Fetch emphasis requirements
-export const useEmphasisRequirementsQuery = (emphasisId: string) => {
-    return useQuery<RequirementGroupsResponse>({
-        queryKey: ['requirements', 'emphasis', emphasisId],
-        queryFn: async () => {
-            const { data } = await api.get<RequirementGroupsResponse>(`/requirements/emphasis`, {
-                params: { emphasisId }
-            });
-            return data;
+            const response = await fetch(`/api/requirements/major?${params.toString()}`);
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+            }
+
+            return response.json();
         },
-        enabled: !!emphasisId
+        enabled: !!(majorId || majorName),
+        staleTime: 10 * 60 * 1000, // 10 minutes
+        gcTime: 30 * 60 * 1000, // 30 minutes
     });
-};
+}
 
-// Fetch university core requirements
-export const useUniversityRequirementsQuery = () => {
-    return useQuery<RequirementGroupsResponse>({
-        queryKey: ['requirements', 'university'],
-        queryFn: async () => {
-            const { data } = await api.get<RequirementGroupsResponse>('/requirements/university');
-            return data;
-        }
+// =============================================
+// UNIVERSITY REQUIREMENTS QUERY
+// =============================================
+
+export function useUniversityRequirementsQuery() {
+    return useQuery({
+        queryKey: ['universityRequirements'],
+        queryFn: async (): Promise<UniversityRequirementsResponse> => {
+            const response = await fetch('/api/requirements/university');
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+            }
+
+            return response.json();
+        },
+        staleTime: 30 * 60 * 1000, // 30 minutes
+        gcTime: 60 * 60 * 1000, // 1 hour
     });
-}; 
+}
+
+// =============================================
+// EMPHASIS REQUIREMENTS QUERY
+// =============================================
+
+export function useEmphasisRequirementsQuery(emphasisId: string) {
+    return useQuery({
+        queryKey: ['emphasisRequirements', emphasisId],
+        queryFn: async (): Promise<RequirementsResponse> => {
+            const response = await fetch(`/api/requirements/emphasis?emphasisId=${encodeURIComponent(emphasisId)}`);
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+            }
+
+            return response.json();
+        },
+        enabled: !!emphasisId,
+        staleTime: 10 * 60 * 1000, // 10 minutes
+        gcTime: 30 * 60 * 1000, // 30 minutes
+    });
+}

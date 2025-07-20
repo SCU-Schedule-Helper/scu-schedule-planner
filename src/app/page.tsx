@@ -24,7 +24,7 @@ import {
 } from "lucide-react";
 import { AddCourseDialog } from "@/components/add-course-dialog";
 import type { Quarter } from "@/lib/types";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { usePlanValidation } from "@/hooks/usePlanValidation";
 import { StatCard } from "@/components/dashboard/StatCard";
 import { useDashboardMetrics } from "@/hooks/useDashboardMetrics";
@@ -44,14 +44,21 @@ export default function DashboardPage() {
     currentPlanId,
     plans: localPlans,
   } = usePlannerStore();
-  const { data: plans } = usePlansQuery(userId ?? "");
+  const { data: serverPlans } = usePlansQuery(userId ?? "");
+
+  // Effect to synchronize server state with local Zustand store
+  useEffect(() => {
+    if (serverPlans) {
+      usePlannerStore.getState().setPlans(serverPlans);
+    }
+  }, [serverPlans]);
 
   // Prefer local (optimistically updated) plans from Zustand; fallback to server data
   const storePlan = currentPlanId
     ? localPlans.find((p) => p.id === currentPlanId)
     : localPlans[0];
 
-  const serverPlan = plans?.[0];
+  const serverPlan = serverPlans?.[0];
 
   const plan = storePlan ?? serverPlan;
   const quarters = plan?.quarters ?? [];
@@ -90,12 +97,26 @@ export default function DashboardPage() {
 
     movePlannedCourse(course.courseCode, fromQuarterId, toQuarterId); // optimistic local update
 
-    await movePlannedCourseMutation.mutateAsync({
-      planId: plan.id,
-      courseCode: course.courseCode,
-      fromQuarter: fromQuarterId,
-      toQuarter: toQuarterId,
-    });
+    try {
+      // NOTE: quarterId is in the format 'fall-2025', etc.
+      const [fromQuarter, fromYearString] = fromQuarterId.split("-");
+      const fromYear = parseInt(fromYearString);
+      const [toQuarter, toYearString] = toQuarterId.split("-");
+      const toYear = parseInt(toYearString);
+
+      const payload = {
+        planId: plan.id,
+        courseCode: course.courseCode,
+        fromQuarter,
+        fromYear,
+        toQuarter,
+        toYear,
+      };
+      await movePlannedCourseMutation.mutateAsync(payload);
+    } catch {
+      // Revert the optimistic update on failure
+      movePlannedCourse(course.courseCode, toQuarterId, fromQuarterId);
+    }
   };
 
   return (
@@ -286,10 +307,15 @@ export default function DashboardPage() {
               addPlannedCourse(courseCode, targetQuarterId);
 
               try {
+                // Extract year from quarter ID (assuming format like "Fall-2023")
+                const [quarterName, yearStr] = targetQuarterId.split("-");
+                const year = parseInt(yearStr);
+
                 await addPlannedCourseMutation.mutateAsync({
                   planId: plan.id,
                   courseCode,
-                  quarter: targetQuarterId,
+                  quarter: quarterName,
+                  year,
                 });
               } catch {
                 // Roll back optimistic update if request failed

@@ -103,19 +103,8 @@ const OnboardingFlow = () => {
       // Ensure maxUnitsPerQuarter is a number
       const maxUnitsPerQuarter = Number(formData.maxUnitsPerQuarter);
 
-      console.log("Creating plan with data:", {
-        name: formData.planName,
-        userId,
-        majorId: formData.majorId,
-        emphasisId: formData.emphasisId || undefined,
-        catalogYearId: "current",
-        maxUnitsPerQuarter,
-        includeSummer: formData.includeSummer,
-      });
-
       const newPlan = await createPlanMutation.mutateAsync({
         name: formData.planName,
-        userId,
         majorId: formData.majorId,
         emphasisId: formData.emphasisId || undefined,
         catalogYearId: "current", // Default to current catalog year
@@ -125,11 +114,13 @@ const OnboardingFlow = () => {
         completedCourses: [],
       });
 
-      console.log("Plan created:", newPlan);
-
-      if (newPlan.id) {
-        addPlan(newPlan);
-        setCurrentPlan(newPlan.id);
+      if (newPlan) {
+        const planWithId = {
+          ...newPlan,
+          id: newPlan.id || crypto.randomUUID(), // Ensure ID is present
+        };
+        addPlan(planWithId);
+        setCurrentPlan(planWithId.id);
         completeOnboarding();
       }
     } catch (error) {

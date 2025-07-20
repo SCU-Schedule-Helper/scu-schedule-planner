@@ -6,10 +6,10 @@ import {
   ChartTooltipContent,
 } from "@/components/ui/chart";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Cell } from "recharts";
-import type { CourseDepth } from "@/lib/analytics/calculatePrereqDepths";
+import type { PrereqDepthResult } from "@/lib/analytics/calculatePrereqDepths";
 
 interface Props {
-  data: CourseDepth[];
+  data: PrereqDepthResult[];
   maxBars?: number;
   onSelectCourse?: (code: string) => void;
 }
@@ -21,7 +21,9 @@ export function PrereqDepthBarChart({
 }: Props) {
   if (!data || data.length === 0) return null;
 
-  const limited = data.slice(0, maxBars).map((d) => ({ ...d, name: d.code }));
+  const limited = data
+    .slice(0, maxBars)
+    .map((d) => ({ ...d, name: d.courseCode }));
 
   const config = { depth: { label: "Depth", color: "#b31b1b" } } as const;
 

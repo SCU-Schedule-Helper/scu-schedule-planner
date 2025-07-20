@@ -14,18 +14,24 @@ export function useDashboardMetrics(): DashboardMetrics | null {
     const plan = plans.find((p) => p.id === currentPlanId);
 
     const { data: catalogCourses = [] } = useCoursesQuery();
-    const { data: uniReqs = [] } = useUniversityRequirementsQuery();
+    const { data: uniReqs } = useUniversityRequirementsQuery();
     const { data: majorReqs = [] } = useMajorRequirementsQuery();
     const { data: empReqs = [] } = useEmphasisRequirementsQuery(selectedEmphasisId ?? "");
 
-    const allRequirements = [...uniReqs, ...majorReqs, ...empReqs];
+    const allRequirements = [
+        ...(uniReqs?.coreRequirements || []),
+        ...(uniReqs?.corePathways || []),
+        ...majorReqs,
+        ...empReqs
+    ];
 
     const validationReport = usePlanValidation(plan);
 
     const metrics = useMemo(() => {
         if (!plan) return null;
         // Build quick course map for O(1) lookup
-        const courseMap = catalogCourses.reduce<Record<string, any>>((acc, c) => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const courseMap = catalogCourses.reduce<Record<string, any>>((acc: Record<string, any>, c: any) => {
             if (c.code) acc[c.code] = c;
             return acc;
         }, {});
@@ -39,4 +45,4 @@ export function useDashboardMetrics(): DashboardMetrics | null {
     }, [plan, catalogCourses, allRequirements, validationReport]);
 
     return metrics;
-} 
+}

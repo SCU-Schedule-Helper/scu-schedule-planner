@@ -37,6 +37,7 @@ interface PlannerState {
     setMajor: (majorId: string) => void;
     setEmphasis: (emphasisId: string) => void;
     createPlan: (plan: Omit<UserPlan, 'id'>) => void;
+    setPlans: (plans: UserPlan[]) => void;
     updatePlan: (planId: string, updates: Partial<UserPlan>) => void;
     deletePlan: (planId: string) => void;
     setCurrentPlan: (planId: string) => void;
@@ -115,6 +116,8 @@ export const usePlannerStore = create<PlannerState>()(
             },
 
             setCurrentPlan: (planId) => set({ currentPlanId: planId }),
+
+            setPlans: (plans) => set({ plans }),
 
             addCompletedCourse: (courseCode, grade, isTransfer = false) => {
                 const { currentPlanId } = get();
