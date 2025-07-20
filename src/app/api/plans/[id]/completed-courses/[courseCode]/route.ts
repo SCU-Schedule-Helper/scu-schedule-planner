@@ -20,10 +20,12 @@ export async function DELETE(
             return NextResponse.json({ error: 'Plan not found' }, { status: 404 });
         }
 
-        const metadata = (plan.metadata as Json || {}) as any;
-        const completed = (metadata.completed_courses as any[] | undefined) ?? [];
+        const metadata = (plan.metadata as Json || {}) as Record<string, unknown>;
+        const completed = (metadata.completed_courses as Record<string, unknown>[] | undefined) ?? [];
 
-        const updatedCompleted = completed.filter((c) => c.courseCode !== courseCode);
+        const updatedCompleted = completed.filter((c) =>
+            typeof c === 'object' && c !== null && 'courseCode' in c && c.courseCode !== courseCode
+        );
 
         const newMetadata: Json = {
             ...metadata,
@@ -40,7 +42,7 @@ export async function DELETE(
         }
 
         return NextResponse.json({ success: true });
-    } catch (err) {
+    } catch {
         return NextResponse.json({ error: 'Internal error' }, { status: 500 });
     }
 } 

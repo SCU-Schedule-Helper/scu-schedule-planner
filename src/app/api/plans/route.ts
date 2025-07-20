@@ -35,23 +35,76 @@ export async function GET(request: Request) {
         }
 
         // Format the plans to match our schema
-        const formattedPlans = plans.map(plan => {
+        const formattedPlans = await Promise.all(plans.map(async (plan) => {
             // Get the metadata from RLS
             const metadata = (plan.metadata as Json || {}) as Record<string, unknown>;
+            const baseQuarters = (metadata.quarters as Quarter[]) || [];
+            const quarterMap = new Map<string, PlannedCourse[]>();
+
+            // Initialize quarters with the correct key format
+            baseQuarters.forEach(quarter => {
+                const key = `${quarter.year}-${quarter.season}`;
+                quarterMap.set(key, []);
+            });
+
+            // Fetch planned courses for this plan
+            const { data: plannedCourses } = await supabase
+                .from('planned_courses')
+                .select('*')
+                .eq('plan_id', plan.id);
+
+            // Separate planned courses by status
+            const completedFromTable: PlannedCourse[] = [];
+
+            (plannedCourses || []).forEach(course => {
+                const formattedCourse: PlannedCourse = {
+                    courseCode: course.course_code,
+                    quarter: course.quarter,
+                    status: course.status as 'planned' | 'completed' | 'in-progress' || 'planned',
+                };
+
+                if (course.status === 'completed') {
+                    completedFromTable.push(formattedCourse);
+                } else {
+                    const matchingQuarter = baseQuarters.find(q => 
+                        q.season === course.quarter && q.year === course.year
+                    );
+
+                    if (matchingQuarter) {
+                        const key = `${matchingQuarter.year}-${matchingQuarter.season}`;
+                        quarterMap.get(key)?.push(formattedCourse);
+                    }
+                }
+            });
+
+            // Format the quarters array with the courses
+            const quarters = baseQuarters.map(baseQuarter => {
+                const key = `${baseQuarter.year}-${baseQuarter.season}`;
+                return {
+                    ...baseQuarter,
+                    id: key,
+                    name: `${baseQuarter.season} ${baseQuarter.year}`,
+                    courses: quarterMap.get(key) || []
+                };
+            });
+
+            // Combine completed courses from metadata and planned_courses table
+            const metadataCompleted = (metadata.completed_courses as PlannedCourse[]) || [];
+            const allCompletedCourses = [...metadataCompleted, ...completedFromTable];
 
             return {
                 id: plan.id,
                 name: plan.name,
                 userId: plan.user_id,
-                majorId: metadata.major_id as string || '',
+                majorId: plan.major || metadata.major_id as string || '',
                 emphasisId: plan.emphasis_id || undefined,
                 catalogYearId: metadata.catalog_year_id as string || 'current',
                 maxUnitsPerQuarter: metadata.max_units_per_quarter as number || 20,
                 includeSummer: metadata.include_summer as boolean || false,
-                quarters: (metadata.quarters as Quarter[]) || [],
-                completedCourses: (metadata.completed_courses as PlannedCourse[]) || []
+                quarters: quarters,
+                completedCourses: allCompletedCourses
             };
-        });
+        }));
 
         return NextResponse.json(formattedPlans);
     } catch (error) {
@@ -75,6 +128,20 @@ export async function POST(request: Request) {
         // Default quarter is the current one based on server date
         const defaultQuarter = buildQuarter(getQuarterForDate());
 
+        // Fetch major name from majorId
+        let majorName = '';
+        if (plan.majorId) {
+            const { data: major, error: majorError } = await supabase
+                .from('majors')
+                .select('name')
+                .eq('id', plan.majorId)
+                .single();
+
+            if (!majorError && major) {
+                majorName = major.name;
+            }
+        }
+
         // Create metadata object for additional fields
         const metadata = {
             major_id: plan.majorId,
@@ -89,6 +156,7 @@ export async function POST(request: Request) {
         const insertPayload: Record<string, unknown> = {
             name: plan.name,
             user_id: plan.userId,
+            major: majorName, // Store the major name
             metadata: metadata as Json,
         };
 
@@ -117,7 +185,7 @@ export async function POST(request: Request) {
             id: data.id,
             name: data.name,
             userId: data.user_id,
-            majorId: metadata.major_id,
+            majorId: majorName, // Use the major name we fetched
             emphasisId: data.emphasis_id || undefined,
             catalogYearId: metadata.catalog_year_id,
             maxUnitsPerQuarter: metadata.max_units_per_quarter,

@@ -1,84 +1,212 @@
 import { NextResponse } from 'next/server';
-import { z } from 'zod';
 import { createSupabaseServer } from '@/lib/supabase/server';
-import { Json } from '@/lib/database.types';
+import {
+    ApiError,
+    handleApiError,
+    logApiError,
+    validateRequiredField,
+    validateCourseCode,
+    validateUnits,
+    withErrorHandling
+} from '@/lib/errors';
 
-const MoveCourseSchema = z.object({
-    fromQuarter: z.string(),
-    toQuarter: z.string(),
-});
+export async function DELETE(
+    request: Request,
+    { params }: { params: { id: string; courseCode: string } }
+) {
+    return withErrorHandling(async () => {
+        const { id: planId, courseCode } = params;
+        validateRequiredField(planId, 'planId');
+        validateRequiredField(courseCode, 'courseCode');
+        validateCourseCode(courseCode);
 
-type MoveCourse = z.infer<typeof MoveCourseSchema>;
+        const supabase = await createSupabaseServer();
 
-type PlanCourse = { courseCode: string; quarter: string;[key: string]: unknown };
+        // Check if plan exists
+        const { error: planError } = await supabase
+            .from('plans')
+            .select('id')
+            .eq('id', planId)
+            .single();
+
+        if (planError) {
+            if (planError.code === 'PGRST116') {
+                throw ApiError.notFound('Plan not found', 'PLAN_NOT_FOUND');
+            }
+
+            logApiError(ApiError.databaseError('Error checking plan existence'), {
+                error: planError,
+                planId
+            });
+            throw ApiError.databaseError('Failed to check plan existence');
+        }
+
+        // Check if planned course exists
+        const { error: courseError } = await supabase
+            .from('planned_courses')
+            .select('id')
+            .eq('plan_id', planId)
+            .eq('course_code', courseCode)
+            .single();
+
+        if (courseError) {
+            if (courseError.code === 'PGRST116') {
+                throw ApiError.notFound(
+                    `Course ${courseCode} is not planned in this plan`,
+                    'COURSE_NOT_FOUND'
+                );
+            }
+
+            logApiError(ApiError.databaseError('Error checking planned course existence'), {
+                error: courseError,
+                planId,
+                courseCode
+            });
+            throw ApiError.databaseError('Failed to check planned course existence');
+        }
+
+        // Delete the planned course
+        const { error: deleteError } = await supabase
+            .from('planned_courses')
+            .delete()
+            .eq('plan_id', planId)
+            .eq('course_code', courseCode);
+
+        if (deleteError) {
+            logApiError(ApiError.databaseError('Error deleting planned course'), {
+                error: deleteError,
+                planId,
+                courseCode
+            });
+            throw ApiError.databaseError('Failed to remove course from plan');
+        }
+
+        return NextResponse.json({
+            success: true,
+            message: `Course ${courseCode} removed from plan`
+        });
+    })().catch(error => handleApiError(error, request));
+}
 
 export async function PATCH(
     request: Request,
     { params }: { params: { id: string; courseCode: string } }
 ) {
-    const { id: planId, courseCode } = params;
+    return withErrorHandling(async () => {
+        const { id: planId, courseCode } = params;
+        validateRequiredField(planId, 'planId');
+        validateRequiredField(courseCode, 'courseCode');
+        validateCourseCode(courseCode);
 
-    try {
         const body = await request.json();
-        const payload = MoveCourseSchema.parse(body) as MoveCourse;
+        const { quarter, year, status, units } = body;
 
         const supabase = await createSupabaseServer();
 
-        const { data: plan, error: fetchError } = await supabase
+        // Check if plan exists
+        const { error: planError } = await supabase
             .from('plans')
-            .select('*')
+            .select('id')
             .eq('id', planId)
             .single();
 
-        if (fetchError || !plan) {
-            return NextResponse.json({ error: 'Plan not found' }, { status: 404 });
+        if (planError) {
+            if (planError.code === 'PGRST116') {
+                throw ApiError.notFound('Plan not found', 'PLAN_NOT_FOUND');
+            }
+
+            logApiError(ApiError.databaseError('Error checking plan existence'), {
+                error: planError,
+                planId
+            });
+            throw ApiError.databaseError('Failed to check plan existence');
         }
 
-        const metadata = ((plan.metadata as Json) || {}) as Record<string, unknown>;
-        const quarters = (metadata.quarters as Array<{ id: string; courses: PlanCourse[] }>) ?? [];
+        // Check if planned course exists
+        const { error: courseError } = await supabase
+            .from('planned_courses')
+            .select('*')
+            .eq('plan_id', planId)
+            .eq('course_code', courseCode)
+            .single();
 
-        const fromIndex = quarters.findIndex((q) => q.id === payload.fromQuarter);
-        const toIndex = quarters.findIndex((q) => q.id === payload.toQuarter);
+        if (courseError) {
+            if (courseError.code === 'PGRST116') {
+                throw ApiError.notFound(
+                    `Course ${courseCode} is not planned in this plan`,
+                    'COURSE_NOT_FOUND'
+                );
+            }
 
-        if (fromIndex === -1 || toIndex === -1) {
-            return NextResponse.json({ error: 'Quarter not found' }, { status: 404 });
+            logApiError(ApiError.databaseError('Error checking planned course existence'), {
+                error: courseError,
+                planId,
+                courseCode
+            });
+            throw ApiError.databaseError('Failed to check planned course existence');
         }
 
-        // Find the course in from quarter
-        const courseIdx = quarters[fromIndex].courses.findIndex(
-            (c: PlanCourse) => c.courseCode === courseCode
-        );
-        if (courseIdx === -1) {
-            return NextResponse.json({ error: 'Course not found in source quarter' }, { status: 404 });
+        // Validate update fields
+        const updateData: Record<string, unknown> = {};
+
+        if (quarter !== undefined) {
+            const validQuarters = ['fall', 'winter', 'spring', 'summer'];
+            if (!validQuarters.includes(quarter.toLowerCase())) {
+                throw ApiError.badRequest(
+                    'Invalid quarter value',
+                    'INVALID_INPUT',
+                    { quarter, validQuarters }
+                );
+            }
+            updateData.quarter = quarter;
         }
 
-        const [course] = quarters[fromIndex].courses.splice(courseIdx, 1);
-        (course as PlanCourse).quarter = payload.toQuarter;
-        quarters[toIndex].courses.push(course);
+        if (year !== undefined) {
+            if (year < 2020 || year > 2050) {
+                throw ApiError.badRequest(
+                    'Year must be between 2020 and 2050',
+                    'INVALID_INPUT',
+                    { year, minYear: 2020, maxYear: 2050 }
+                );
+            }
+            updateData.year = year;
+        }
 
-        const newMetadata: Json = {
-            ...metadata,
-            quarters,
-        } as Json;
+        if (status !== undefined) {
+            const validStatuses = ['planned', 'completed', 'in-progress', 'not_started'];
+            if (!validStatuses.includes(status)) {
+                throw ApiError.badRequest(
+                    'Invalid status value',
+                    'INVALID_INPUT',
+                    { status, validStatuses }
+                );
+            }
+            updateData.status = status;
+        }
 
-        const { error: updateError } = await supabase
-            .from('plans')
-            .update({ metadata: newMetadata })
-            .eq('id', planId)
+        if (units !== undefined) {
+            validateUnits(units);
+            updateData.units = units;
+        }
+
+        // Update the planned course
+        const { data: updatedCourse, error: updateError } = await supabase
+            .from('planned_courses')
+            .update(updateData)
+            .eq('plan_id', planId)
+            .eq('course_code', courseCode)
             .select()
             .single();
 
         if (updateError) {
-            console.error('Error updating plan for move', updateError);
-            return NextResponse.json({ error: 'Failed to move course' }, { status: 500 });
+            logApiError(ApiError.databaseError('Error updating planned course'), {
+                error: updateError,
+                planId,
+                courseCode
+            });
+            throw ApiError.databaseError('Failed to update planned course');
         }
 
-        return NextResponse.json(course);
-    } catch (err) {
-        if (err instanceof z.ZodError) {
-            return NextResponse.json({ error: 'Invalid payload', details: err.issues }, { status: 400 });
-        }
-        console.error('Unexpected error', err);
-        return NextResponse.json({ error: 'Internal error' }, { status: 500 });
-    }
+        return NextResponse.json(updatedCourse);
+    })().catch(error => handleApiError(error, request));
 } 

@@ -1,58 +1,45 @@
 import { NextResponse } from 'next/server';
-import { z } from 'zod';
-
-// Define schema for emphasis area
-const EmphasisAreaSchema = z.object({
-    id: z.string(),
-    name: z.string(),
-    description: z.string().optional(),
-    majorId: z.string()
-});
-
-type EmphasisArea = z.infer<typeof EmphasisAreaSchema>;
+import { createSupabaseServer } from '@/lib/supabase/server';
+import {
+    ApiError,
+    handleApiError,
+    logApiError,
+    withErrorHandling
+} from '@/lib/errors';
 
 export async function GET(request: Request) {
-    try {
+    return withErrorHandling(async () => {
         const { searchParams } = new URL(request.url);
         const majorId = searchParams.get('majorId');
 
-        if (!majorId) {
-            return NextResponse.json(
-                { error: 'majorId is required' },
-                { status: 400 }
-            );
+        const supabase = await createSupabaseServer();
+
+        let query = supabase
+            .from('emphasis_areas_enhanced')
+            .select('id, name, description, applies_to, department_code')
+            .order('name');
+
+        // Filter by major if majorId is provided
+        if (majorId) {
+            query = query.eq('applies_to', majorId);
         }
 
-        const supabase = await (await import('@/lib/supabase/server')).createSupabaseServer();
-
-        // Pull all emphasis areas for now (schema currently has no major relationship)
-        const { data, error } = await supabase
-            .from('emphasis_areas')
-            .select('id, name, description');
+        const { data: emphasisAreas, error } = await query;
 
         if (error) {
-            console.error('Error fetching emphasis areas:', error);
-            return NextResponse.json(
-                { error: error.message },
-                { status: 500 }
-            );
+            logApiError(ApiError.databaseError('Error fetching emphasis areas'), { error, majorId });
+            throw ApiError.databaseError('Failed to fetch emphasis areas');
         }
 
-        // Map DB rows to expected shape, adding majorId from query so the UI keeps context
-        const emphasisAreas: EmphasisArea[] = (data || []).map((row) => ({
-            id: row.id,
-            name: row.name,
-            description: row.description ?? undefined,
-            majorId
+        // Transform the data to match frontend expectations
+        const transformedEmphasisAreas = (emphasisAreas || []).map(emphasis => ({
+            id: emphasis.id,
+            name: emphasis.name,
+            description: emphasis.description,
+            appliesTo: emphasis.applies_to,
+            departmentCode: emphasis.department_code,
         }));
 
-        const validatedEmphasisAreas = z.array(EmphasisAreaSchema).parse(emphasisAreas);
-        return NextResponse.json(validatedEmphasisAreas);
-    } catch (error) {
-        console.error('Error in emphasis areas API:', error);
-        return NextResponse.json(
-            { error: 'Failed to fetch emphasis areas' },
-            { status: 500 }
-        );
-    }
+        return NextResponse.json(transformedEmphasisAreas);
+    })().catch(error => handleApiError(error, request));
 } 

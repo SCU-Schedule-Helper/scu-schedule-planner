@@ -1,44 +1,35 @@
 import { NextResponse } from 'next/server';
-import { z } from 'zod';
+import { createSupabaseServer } from '@/lib/supabase/server';
+import {
+    ApiError,
+    handleApiError,
+    logApiError,
+    withErrorHandling
+} from '@/lib/errors';
 
-// Define schema for major
-const MajorSchema = z.object({
-    id: z.string(),
-    name: z.string(),
-    code: z.string()
-});
+export async function GET(request: Request) {
+    return withErrorHandling(async () => {
+        const supabase = await createSupabaseServer();
 
-export async function GET() {
-    try {
-        // For now, we'll return mock data since we don't have a real database table for majors yet
-        // In a real application, you would fetch this from the database
-        const majors = [
-            {
-                id: "cs",
-                name: "Computer Science",
-                code: "CSCI"
-            },
-            {
-                id: "csen",
-                name: "Computer Science & Engineering",
-                code: "CSEN"
-            },
-            {
-                id: "math",
-                name: "Mathematics",
-                code: "MATH"
-            }
-        ];
+        const { data: majors, error } = await supabase
+            .from('majors')
+            .select('id, name, description, department_code, requires_emphasis')
+            .order('name');
 
-        // Validate with schema
-        const validatedMajors = z.array(MajorSchema).parse(majors);
+        if (error) {
+            logApiError(ApiError.databaseError('Error fetching majors'), { error });
+            throw ApiError.databaseError('Failed to fetch majors');
+        }
 
-        return NextResponse.json(validatedMajors);
-    } catch (error) {
-        console.error('Error in majors API:', error);
-        return NextResponse.json(
-            { error: 'Failed to fetch majors' },
-            { status: 500 }
-        );
-    }
+        // Transform the data to match frontend expectations
+        const transformedMajors = (majors || []).map(major => ({
+            id: major.id,
+            name: major.name,
+            description: major.description,
+            departmentCode: major.department_code,
+            requiresEmphasis: Boolean(major.requires_emphasis),
+        }));
+
+        return NextResponse.json(transformedMajors);
+    })().catch(error => handleApiError(error, request));
 } 

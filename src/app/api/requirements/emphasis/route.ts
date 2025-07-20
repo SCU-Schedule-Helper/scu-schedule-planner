@@ -1,108 +1,139 @@
 import { NextResponse } from 'next/server';
 import { createSupabaseServer } from '@/lib/supabase/server';
-import { RequirementGroupsResponseSchema, ApiErrorSchema } from '@/lib/types';
-import { z } from 'zod';
+import { RequirementsResponseSchema, ApiErrorSchema } from '@/lib/types';
 
 export async function GET(request: Request) {
     try {
         const { searchParams } = new URL(request.url);
+        const emphasisParam = searchParams.get('emphasis');
         const emphasisId = searchParams.get('emphasisId');
 
-        if (!emphasisId) {
+        if (!emphasisParam && !emphasisId) {
             return NextResponse.json(
-                ApiErrorSchema.parse({ error: 'emphasisId is required' }),
+                ApiErrorSchema.parse({ error: 'Emphasis name or emphasisId parameter is required' }),
                 { status: 400 }
             );
         }
 
         const supabase = await createSupabaseServer();
 
-        // Get requirements for this emphasis area
-        const { data: emphasisRequirements, error: requirementsError } = await supabase
-            .from('emphasis_requirements')
-            .select('requirement_id')
-            .eq('emphasis_id', emphasisId);
+        // Fetch the emphasis with requirements stored as text
+        // Try to match by ID first (if provided), then by name
+        let query = supabase.from('emphasis_areas_enhanced').select('*');
 
-        if (requirementsError) {
-            console.error('Error fetching emphasis requirements:', requirementsError);
+        if (emphasisId) {
+            query = query.eq('id', emphasisId);
+        } else if (emphasisParam) {
+            query = query.eq('name', emphasisParam);
+        }
+
+        const { data: emphasis, error } = await query.single();
+
+        if (error) {
+            console.error('Error fetching emphasis requirements:', error);
             return NextResponse.json(
-                ApiErrorSchema.parse({ error: requirementsError.message }),
-                { status: 500 }
+                ApiErrorSchema.parse({ error: 'Emphasis not found' }),
+                { status: 404 }
             );
         }
 
-        if (!emphasisRequirements || emphasisRequirements.length === 0) {
-            return NextResponse.json([]);
-        }
+        // Convert the simplified requirements to the expected format
+        const requirements = [];
 
-        // Get the requirement details
-        const requirementIds = emphasisRequirements.map(r => r.requirement_id);
-        const { data: requirements, error: reqDetailsError } = await supabase
-            .from('requirements')
-            .select('*')
-            .in('id', requirementIds);
+        if (emphasis.course_requirements_expression) {
+            const expression = emphasis.course_requirements_expression;
 
-        if (reqDetailsError) {
-            console.error('Error fetching requirement details:', reqDetailsError);
-            return NextResponse.json(
-                ApiErrorSchema.parse({ error: reqDetailsError.message }),
-                { status: 500 }
-            );
-        }
+            const expandRange = (range: string): string[] => {
+                const parts = range.split('-');
+                if (parts.length !== 2) return [range];
 
-        // Format the requirements with their courses and options
-        const formattedRequirements = await Promise.all(requirements.map(async (req) => {
-            // Get required courses
-            const { data: requiredCourses } = await supabase
-                .from('requirement_courses')
-                .select('course_id(code)')
-                .eq('requirement_id', req.id);
+                const prefix = parts[0].replace(/\d+$/, '');
+                const start = parseInt(parts[0].match(/\d+$/)?.[0] || '0', 10);
+                const end = parseInt(parts[1], 10);
 
-            // Get choose from options if they exist
-            const { data: chooseFrom } = await supabase
-                .from('requirement_choose_from')
-                .select('id, count')
-                .eq('requirement_id', req.id)
-                .maybeSingle();
+                if (isNaN(start) || isNaN(end)) return [range];
 
-            let chooseFromOptions = null;
-            if (chooseFrom) {
-                const { data: options } = await supabase
-                    .from('requirement_choose_options')
-                    .select('course_id(code)')
-                    .eq('requirement_choose_from_id', chooseFrom.id);
-
-                chooseFromOptions = {
-                    count: chooseFrom.count,
-                    options: options?.map(o => o.course_id.code) || []
-                };
-            }
-
-            return {
-                id: req.id,
-                name: req.name,
-                type: req.type,
-                coursesRequired: requiredCourses?.map(c => c.course_id.code) || [],
-                chooseFrom: chooseFromOptions || undefined,
-                minUnits: req.min_units || undefined,
-                notes: req.notes || undefined
+                const courses: string[] = [];
+                for (let i = start; i <= end; i++) {
+                    courses.push(`${prefix}${i}`);
+                }
+                return courses;
             };
-        }));
 
-        // Validate with Zod schema before returning
-        const validatedRequirements = RequirementGroupsResponseSchema.parse(formattedRequirements);
-        return NextResponse.json(validatedRequirements);
-    } catch (error) {
-        console.error('Error in emphasis requirements API:', error);
-        if (error instanceof z.ZodError) {
-            return NextResponse.json(
-                ApiErrorSchema.parse({ error: 'Invalid requirements data structure' }),
-                { status: 422 }
-            );
+            const parseExpression = (exp: string) => {
+                const coursesRequired: string[] = [];
+                const chooseFrom: { count: number; options: string[] }[] = [];
+
+                const chooseRegex = /(\d+)\((.*?)\)/g;
+                const remainingExp = exp.replace(chooseRegex, (match, count, optionsStr) => {
+                    const options = optionsStr.split('|').flatMap((o: string) => expandRange(o.trim()));
+                    chooseFrom.push({
+                        count: parseInt(count, 10),
+                        options,
+                    });
+                    return '';
+                });
+
+                remainingExp.split('&').forEach(course => {
+                    const trimmed = course.trim();
+                    if (trimmed) {
+                        coursesRequired.push(trimmed);
+                    }
+                });
+
+                return { coursesRequired, chooseFrom };
+            };
+
+            const { coursesRequired, chooseFrom } = parseExpression(expression);
+
+            requirements.push({
+                id: `${emphasis.id}-courses`,
+                name: 'Course Requirements',
+                type: 'course_expression',
+                description: 'Required courses for this emphasis',
+                coursesRequired,
+                chooseFrom: chooseFrom.length > 0 ? chooseFrom[0] : undefined,
+                expression: emphasis.course_requirements_expression,
+                minUnits: undefined,
+                notes: undefined
+            });
         }
+
+        if (emphasis.other_requirements) {
+            try {
+                const otherReqs = Array.isArray(emphasis.other_requirements)
+                    ? emphasis.other_requirements
+                    : [emphasis.other_requirements];
+
+                otherReqs.forEach((req, index) => {
+                    if (typeof req === 'object' && req !== null && !Array.isArray(req)) {
+                        const reqObj = req as Record<string, unknown>;
+                        requirements.push({
+                            id: `${emphasis.id}-other-${index}`,
+                            name: reqObj.requirementName || 'Other Requirement',
+                            type: reqObj.requirementType || 'other',
+                            description: reqObj.requirementDescription || '',
+                            coursesRequired: [],
+                            chooseOptions: [],
+                            minUnits: reqObj.numRequired || undefined,
+                            notes: reqObj.requirementDescription || undefined
+                        });
+                    }
+                });
+            } catch (e) {
+                console.warn('Error parsing other requirements:', e);
+            }
+        }
+
+        return NextResponse.json(RequirementsResponseSchema.parse(requirements));
+
+    } catch (error) {
+        console.error('Unexpected error in emphasis requirements API:', error);
         return NextResponse.json(
-            ApiErrorSchema.parse({ error: 'Failed to fetch emphasis requirements' }),
+            ApiErrorSchema.parse({
+                error: error instanceof Error ? error.message : 'Unknown error occurred'
+            }),
             { status: 500 }
         );
     }
-} 
+}
