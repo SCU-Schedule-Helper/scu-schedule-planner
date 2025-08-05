@@ -237,7 +237,9 @@ const RequirementChecklist: React.FC<RequirementChecklistProps> = ({
                   <h4 className="font-medium text-sm text-gray-500 mb-2">
                     Required Courses:
                   </h4>
-                  <div className="space-y-2">
+                  <div
+                    className={`space-y-2 ${(requirement.coursesRequired?.length ?? 0) > 5 ? "max-h-80 overflow-y-auto" : ""}`}
+                  >
                     {(requirement.coursesRequired ?? []).map((courseCode) => (
                       <CourseItem
                         key={courseCode}
@@ -256,7 +258,9 @@ const RequirementChecklist: React.FC<RequirementChecklistProps> = ({
                   <h4 className="font-medium text-sm text-gray-500 mb-2">
                     Applicable Courses:
                   </h4>
-                  <div className="space-y-2">
+                  <div
+                    className={`space-y-2 ${(requirement.courses?.length ?? 0) > 5 ? "max-h-80 overflow-y-auto" : ""}`}
+                  >
                     {(requirement.courses ?? []).map((course) => (
                       <CourseItem
                         key={course.code}
@@ -275,7 +279,9 @@ const RequirementChecklist: React.FC<RequirementChecklistProps> = ({
                   <h4 className="font-medium text-sm text-gray-500 mb-2">
                     Choose {requirement.chooseFrom.count} from:
                   </h4>
-                  <div className="space-y-2">
+                  <div
+                    className={`space-y-2 ${requirement.chooseFrom.options.length > 5 ? "max-h-80 overflow-y-auto" : ""}`}
+                  >
                     {requirement.chooseFrom.options.length > 0 ? (
                       requirement.chooseFrom.options.map((courseCode) => (
                         <CourseItem
