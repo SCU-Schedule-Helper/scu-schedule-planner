@@ -1,6 +1,6 @@
 import type { Course, RequirementGroup, Substitution, UserPlan } from "@/lib/types";
 import type { ValidationReport } from "@/lib/validation/types";
-import { getAverageUnits } from "@/lib/types";
+import { getAverageUnits } from "@/lib/utils/units";
 
 export interface RequirementProgress {
     id: string;

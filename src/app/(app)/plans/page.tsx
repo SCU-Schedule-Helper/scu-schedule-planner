@@ -22,7 +22,7 @@ import {
 } from "@/components/ui/dialog";
 import { OnboardingWizard } from "@/components/onboarding-wizard";
 import { useCreatePlanMutation } from "@/hooks/api/usePlanQuery";
-import { ApiUserPlanSchema } from "@/lib/store/planStore";
+import { ApiUserPlanSchema } from "@/lib/types";
 import { z } from "zod";
 import type { Course, UserPlan } from "@/lib/types";
 import { VisuallyHidden } from "@radix-ui/react-visually-hidden";

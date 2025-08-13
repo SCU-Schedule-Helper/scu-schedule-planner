@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
-import { ApiUserPlanSchema } from '@/lib/store/planStore';
+import { ApiUserPlanSchema } from '@/lib/types';
 import { createSupabaseServer } from '@/lib/supabase/server';
 import { Json } from '@/lib/database.types';
 import { PlannedCourse, Quarter } from '@/lib/types';
@@ -66,7 +66,7 @@ export async function GET(request: Request) {
                 if (course.status === 'completed') {
                     completedFromTable.push(formattedCourse);
                 } else {
-                    const matchingQuarter = baseQuarters.find(q => 
+                    const matchingQuarter = baseQuarters.find(q =>
                         q.season === course.quarter && q.year === course.year
                     );
 

@@ -66,30 +66,4 @@ export function useEmphasisAreasQuery(majorId?: string) {
     });
 }
 
-// =============================================
-// SCHOOLS QUERY
-// =============================================
-
-export interface School {
-    id: string;
-    name: string;
-    description?: string;
-}
-
-export function useSchoolsQuery() {
-    return useQuery({
-        queryKey: ['schools'],
-        queryFn: async (): Promise<School[]> => {
-            const response = await fetch('/api/schools');
-
-            if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
-            }
-
-            return response.json();
-        },
-        staleTime: 60 * 60 * 1000, // 1 hour
-        gcTime: 2 * 60 * 60 * 1000, // 2 hours
-    });
-} 
+// Note: useSchoolsQuery removed as it was unused 

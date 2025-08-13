@@ -13,7 +13,7 @@ import {
     RequirementStatus,
 } from "./types";
 
-import { getAverageUnits } from "../types";
+import { getAverageUnits } from "../utils/units";
 
 // ---------------------------------------------------------------------------
 // Helpers for quarter ordering & parsing

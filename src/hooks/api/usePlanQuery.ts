@@ -60,35 +60,10 @@ export function useUpdatePlanMutation() {
     });
 }
 
-// =============================================
-// PLAN DELETE MUTATION
-// =============================================
-
-export function useDeletePlanMutation() {
-    const queryClient = useQueryClient();
-
-    return useMutation({
-        mutationFn: async (planId: string): Promise<{ success: boolean; message: string }> => {
-            const response = await fetch(`/api/plans/${planId}`, {
-                method: 'DELETE',
-            });
-
-            if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
-            }
-
-            return response.json();
-        },
-        onSuccess: (data, planId) => {
-            // Remove the plan from the cache
-            queryClient.removeQueries({ queryKey: ['plan', planId] });
-
-            // Invalidate related queries
-            queryClient.invalidateQueries({ queryKey: ['plans'] });
-        },
-    });
-}
+// Note: Unused plan mutation functions have been removed to reduce code bloat.
+// Functions removed: useDeletePlanMutation, usePlannedCoursesQuery, 
+// useUpdatePlannedCourseMutation, useDeletePlannedCourseMutation
+// These can be re-implemented if needed in the future.
 
 // =============================================
 // PLANNED COURSES QUERY
@@ -279,11 +254,11 @@ export function useMovePlannedCourseMutation() {
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({ 
+                body: JSON.stringify({
                     fromQuarter,
                     fromYear,
-                    quarter: toQuarter, 
-                    year: toYear 
+                    quarter: toQuarter,
+                    year: toYear
                 }),
             });
 

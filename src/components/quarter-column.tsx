@@ -17,7 +17,7 @@ import {
   TooltipTrigger,
   TooltipContent,
 } from "@/components/ui/tooltip";
-import { calculateTotalUnits, formatUnits } from "@/lib/types";
+import { calculateTotalUnits, formatUnits } from "@/lib/utils/units";
 
 interface QuarterColumnProps {
   quarter: Quarter;

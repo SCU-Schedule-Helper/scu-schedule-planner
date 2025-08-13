@@ -79,6 +79,14 @@ export const UserPlanSchema = z.object({
 
 export type UserPlan = z.infer<typeof UserPlanSchema>;
 
+// API version of UserPlan with userId and optional id for server-side operations
+export const ApiUserPlanSchema = UserPlanSchema.extend({
+    id: z.string().optional(),
+    userId: z.string()
+});
+
+export type ApiUserPlan = z.infer<typeof ApiUserPlanSchema>;
+
 // Substitution schema with validation
 export const SubstitutionSchema = z.object({
     requirementGroupId: z.string(),

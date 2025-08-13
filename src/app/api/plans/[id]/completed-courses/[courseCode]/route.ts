@@ -1,15 +1,40 @@
 import { NextResponse } from 'next/server';
 import { createSupabaseServer } from '@/lib/supabase/server';
 import { Json } from '@/lib/database.types';
+import {
+    validateRequiredField,
+    validateCourseCode,
+    withErrorHandling,
+    ApiError
+} from '@/lib/errors';
 
 export async function DELETE(
     request: Request,
     { params }: { params: { id: string; courseCode: string } }
 ) {
-    const { id: planId, courseCode } = params;
-    try {
+    return withErrorHandling(async () => {
+        const { id: planId, courseCode } = params;
+        validateRequiredField(planId, 'planId');
+        validateRequiredField(courseCode, 'courseCode');
+        validateCourseCode(courseCode);
+
         const supabase = await createSupabaseServer();
 
+        // Check if plan exists
+        const { error: planError } = await supabase
+            .from('plans')
+            .select('id')
+            .eq('id', planId)
+            .single();
+
+        if (planError) {
+            if (planError.code === 'PGRST116') {
+                throw ApiError.notFound('Plan not found', 'PLAN_NOT_FOUND');
+            }
+            throw ApiError.databaseError(`Database error: ${planError.message}`);
+        }
+
+        // Get full plan to update metadata
         const { data: plan, error } = await supabase
             .from('plans')
             .select('*')
@@ -17,7 +42,7 @@ export async function DELETE(
             .single();
 
         if (error || !plan) {
-            return NextResponse.json({ error: 'Plan not found' }, { status: 404 });
+            throw ApiError.notFound('Plan not found', 'PLAN_NOT_FOUND');
         }
 
         const metadata = (plan.metadata as Json || {}) as Record<string, unknown>;
@@ -38,11 +63,9 @@ export async function DELETE(
             .eq('id', planId);
 
         if (updateError) {
-            return NextResponse.json({ error: 'Failed to update plan' }, { status: 500 });
+            throw ApiError.databaseError(`Failed to update plan: ${updateError.message}`);
         }
 
         return NextResponse.json({ success: true });
-    } catch {
-        return NextResponse.json({ error: 'Internal error' }, { status: 500 });
-    }
+    });
 } 

@@ -145,17 +145,7 @@ export interface Requirement {
     completed?: boolean;
 }
 
-// Re-export units utilities for convenience
-export {
-    parseUnits,
-    getMinUnits,
-    getMaxUnits,
-    getAverageUnits,
-    formatUnits,
-    isValidUnitsFormat,
-    calculateTotalUnits,
-    isUnitsInRange,
-} from '../utils/units';
+// Note: Unit utilities moved to @/lib/utils/units for better organization
 
 // Supabase client type
 export type TypedSupabaseClient = SupabaseClient<Database>; 
